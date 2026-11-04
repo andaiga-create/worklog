@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d91">
+<title>작업일지</title>
+<style id="theme-style"></style>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{font:17px/1.4 -apple-system,"Malgun Gothic","Noto Sans KR",sans-serif;background:var(--bg);color:var(--fg)}
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column;max-width:640px;margin:0 auto}
+header{padding:calc(env(safe-area-inset-top) + 8px) 14px 8px;background:var(--card);border-bottom:1px solid var(--line)}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.hrow b{font-size:18px}
+.tabs{display:flex;gap:6px}
+.tab{min-height:40px;padding:0 14px;border-radius:20px;border:2px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-size:16px}
+.tab.on{background:var(--primary);color:var(--primaryFg);border-color:var(--primary)}
+.bar{height:8px;background:var(--line);border-radius:4px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--primary);transition:width .2s}
+.cnt{font-size:14px;color:var(--sub);margin-top:4px}
+#banner{display:none;background:var(--warn);color:#000;padding:8px 14px;font-size:15px}
+main{flex:1;overflow-y:auto;padding:16px 14px 24px;-webkit-overflow-scrolling:touch}
+h2{margin:0 0 4px;font-size:22px}
+.hint{color:var(--sub);font-size:15px;margin:0 0 14px}
+footer{display:flex;gap:10px;padding:10px 14px calc(env(safe-area-inset-bottom) + 10px);background:var(--card);border-top:1px solid var(--line)}
+button{font:inherit;cursor:pointer}
+.btn{flex:1;min-height:56px;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--fg);font-size:18px;font-weight:600}
+.btn.pri{background:var(--primary);color:var(--primaryFg);border-color:var(--primary);flex:2}
+.btn:disabled{opacity:.35}
+.opt{min-height:56px;width:100%;padding:8px 14px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--fg);font-size:18px;text-align:left;margin-bottom:10px;display:block}
+.opt small{display:block;color:var(--sub);font-size:14px}
+.opt.sel{border-color:var(--primary);background:var(--selBg);font-weight:700}
+.opt.sel small{color:var(--fg)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid .opt{margin:0;text-align:center}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{min-height:48px;padding:0 16px;border-radius:24px;border:2px solid var(--line);background:var(--card);color:var(--fg);font-size:16px}
+.chip.sel{border-color:var(--primary);background:var(--primary);color:var(--primaryFg)}
+.chip.add{border-style:dashed}
+input[type=text],input[type=password],input[type=date],textarea,select{width:100%;min-height:56px;padding:10px 12px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--fg);font:inherit;font-size:17px;margin-bottom:12px}
+textarea{min-height:140px;resize:vertical}
+.lbl{font-weight:700;margin:12px 0 6px;font-size:16px}
+.tm{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.tm .v{flex:1;text-align:center;font-size:32px;font-weight:700}
+.tm button{width:72px;min-height:56px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--fg);font-size:18px;font-weight:700}
+.tm2 small{display:block;color:var(--sub);font-size:14px;text-align:center}
+.tm2 div{display:flex;align-items:center;gap:4px}
+.tm2 b{flex:1;text-align:center;font-size:20px}
+.tm2 button{width:48px;min-height:56px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--fg);font-size:20px;font-weight:700}
+.total{text-align:center;font-size:20px;font-weight:700;padding:12px;background:var(--selBg);border-radius:12px}
+.sum{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:10px}
+.sum div{display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);min-height:48px;cursor:pointer}
+.sum div:last-child{border:0}
+.sum span{width:84px;flex:none;color:var(--sub);font-size:15px}
+.sum em{font-style:normal;flex:1;word-break:break-all;white-space:pre-wrap}
+.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.ph{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--line)}
+.ph img{width:100%;height:100%;object-fit:cover}
+.ph button{position:absolute;top:4px;right:4px;width:36px;height:36px;border-radius:18px;border:0;background:#000b;color:#fff;font-size:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.card .t{font-weight:700}
+.card .s{color:var(--sub);font-size:14px;margin:2px 0 8px}
+.err{color:var(--danger);font-weight:600;margin-bottom:10px}
+.ok{background:var(--selBg);border-radius:14px;padding:18px;text-align:center}
+.ok code{display:block;margin:10px 0;font-size:15px;word-break:break-all}
+.lp{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+#sheet{position:fixed;inset:0;background:#0008;display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.sheetbox{width:100%;max-width:640px;background:var(--card);border-radius:18px 18px 0 0;padding:16px 14px calc(env(safe-area-inset-bottom) + 14px);display:flex;flex-direction:column;gap:10px}
+.sheetbox .t{font-weight:700;font-size:18px;text-align:center;word-break:break-all}
+.sheetbox .btn{flex:none}
+.note{color:var(--sub);font-size:14px;text-align:center;margin:6px 0}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="hrow"><b>작업일지</b>
+      <div class="tabs"><button class="tab" data-a="view" data-v="wizard" id="tab-w">작성</button><button class="tab" data-a="view" data-v="mylogs" id="tab-m">내 일지</button></div>
+    </div>
+    <div class="bar"><i id="bar"></i></div>
+    <div class="cnt" id="cnt"></div>
+  </header>
+  <div id="banner"></div>
+  <main id="main"></main>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+/* =====================================================================
+   설정 객체 (여기만 수정하면 작업구분/체크리스트/색상 등을 바꿀 수 있음)
+   ===================================================================== */
+const CONFIG = {
+  // Apps Script 웹앱 URL (…/exec). 비워두면 샘플 데이터로 동작하는 데모 모드
+  API_URL: "https://script.google.com/macros/s/AKfycbxxsimDu3Thz44EDoW8Md_9NXsJTf27x8JHMYNPve0xHAXqjDTyK_1n41udrD1_HWvq/exec",
+
+  WORK_TYPES: ["기계조립","윈치조립","대조립","설치","시운전","해체","포장","입고","이동","출고","기타"],
+
+  // 마스터 '작업항목' 탭에 해당 작업구분 항목이 있으면 그쪽이 우선 사용됨
+  CHECKLISTS: {
+    "기계조립": ["베이스 프레임 정렬","붕/지브 결합","실린더 설치","핀·부싱 조립","배관 가조립","볼트 체결/토크","도장 보수"],
+    "윈치조립": ["드럼 조립","감속기 설치","브레이크 조립","모터 장착","와이어 감기","커버 설치","그리스 주입"],
+    "대조립": ["블록 위치 정렬","메인 구조 결합","용접 확인","수평 측정","배관 연결","케이블 트레이 설치","도장 보수"],
+    "설치": ["위치 마킹","본체 탑재","앵커/볼트 체결","유압 배관 연결","전장 배선","접지 연결","수평 확인"],
+    "시운전": ["유압유 주입","전장 연결","와이어 리깅","리미트 세팅","로드 테스트","유압유 드레인","누유 점검","작동 점검"],
+    "해체": ["전원 차단","유압유 드레인","배관 분리","케이블 분리","와이어 철거","본체 분리","부품 분류/보관"],
+    "포장": ["방청 처리","부품 포장","목박스 제작","고박 작업","라벨 부착","포장 사진 촬영"],
+    "입고": ["입고 검수","수량 확인","파손 확인","적치","입고 서류 확인","라벨 부착"],
+    "이동": ["지게차 이동","크레인 이동","트레일러 상차","경로 확인","적치 위치 정리"],
+    "출고": ["출고 검수","상차","고박","출고 서류 작성","선적 사진 촬영","운송사 인계"],
+    "기타": ["청소/정리","자재 정리","장비 점검","교육/회의","대기"]
+  },
+
+  STATUSES: ["완료","진행중","보류-부품대기","보류-선주확인"],
+
+  QUICK_PHRASES: ["계획대로 진행","부품 입고 대기","도면 확인 필요","선주 입회 진행","내일 계속 진행","재작업 실시","안전 점검 완료","청소 및 정리 완료"],
+
+  // presets: 시간대 버튼. 이어진(바로 옆) 버튼끼리만 함께 선택 가능, 총 작업시간은 선택한 시간대 합계(휴식 제외)
+  TIME: { step: 30, defaultStart: "08:30", defaultEnd: "17:30",
+          presets: [["08:30","10:00"],["10:10","12:00"],["13:00","15:00"],["15:10","17:30"],["18:00","20:00"]] },
+
+  PHOTO: { max: 5, maxSize: 1280, quality: 0.7 },
+  RECENT_MAX: 5,
+
+  COLORS: {
+    light: { bg:"#f2f4f8", card:"#ffffff", fg:"#10151f", sub:"#51586a", line:"#c5cbd8",
+             primary:"#0b3d91", primaryFg:"#ffffff", selBg:"#dce8ff", danger:"#b00020", warn:"#ffd54a" },
+    dark:  { bg:"#0d1117", card:"#161b22", fg:"#f2f5f9", sub:"#a9b2c0", line:"#3a4250",
+             primary:"#5b9dff", primaryFg:"#001a3d", selBg:"#1a2f55", danger:"#ff6b7f", warn:"#ffd54a" }
+  }
+};
+
+/* 데모 모드용 샘플 마스터 */
+const DEMO_MASTER = {
+  projects:[
+    {yard:"HHI",yardName:"HD현대중공업",hull:"8123",owner:"컨테이너선/A사",name:"ACR01",code:"ACR",serial:"SN-A101"},
+    {yard:"HHI",yardName:"HD현대중공업",hull:"8123",owner:"컨테이너선/A사",name:"ACR02",code:"ACR",serial:"SN-A102"},
+    {yard:"HHI",yardName:"HD현대중공업",hull:"8124",owner:"컨테이너선/A사",name:"ACR01",code:"ACR",serial:"SN-A201"},
+    {yard:"HO",yardName:"한화오션",hull:"2661",owner:"LNG선/B사",name:"MLA크레인",code:"MLA",serial:"SN-M301"},
+    {yard:"SHI",yardName:"삼성중공업",hull:"8123",owner:"탱커/C사",name:"PC01",code:"PC",serial:"SN-P401"}],
+  workers:[{name:"김자사",affil:"자사",vendor:""},{name:"이자사",affil:"자사",vendor:""},
+           {name:"박외주",affil:"외주",vendor:"대한용접"},{name:"최외주",affil:"외주",vendor:"대한용접"},
+           {name:"정외주",affil:"외주",vendor:"성진기계"}],
+  vendors:[{name:"대한용접",phone:""},{name:"성진기계",phone:""}],
+  items:[]
+};
+
+/* =====================================================================
+   저장소 / 상태
+   ===================================================================== */
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2, "0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const addDays = n => { const d = new Date(); d.setDate(d.getDate()+n); return ymd(d); };
+
+function freshState(){
+  return { date: ymd(new Date()), writer: LS.get("wl_writer",""), affil:"", vendor:"", workers:[],
+           yard:"", hull:"", equip:"", type:"", items:[],
+           start: CONFIG.TIME.defaultStart, end: CONFIG.TIME.defaultEnd, slots: [],
+           status:"", detail:"", notes:"", photos:[], step:"date", clientId: uid() };
+}
+function uid(){ return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+let S = Object.assign(freshState(), LS.get("wl_draft", {}), { photos: [] });
+let master = LS.get("wl_master", null);
+if(master && !master.projects) master = null;   // 예전 형식 캐시는 버림
+let view = "wizard";           // wizard | mylogs | done | pin
+let editing = false, busy = false, msg = "", doneInfo = null, q = "", logFilter = "";
+
+function saveDraft(){ const d = Object.assign({}, S); delete d.photos; LS.set("wl_draft", d); }
+const getPin = () => LS.get("wl_pin", "");
+const getQueue = () => LS.get("wl_queue", []);
+const getLogs = () => LS.get("wl_logs", []);
+
+/* =====================================================================
+   테마
+   ===================================================================== */
+(function applyTheme(){
+  const toCss = o => Object.entries(o).map(([k,v]) => `--${k}:${v}`).join(";");
+  $("#theme-style").textContent = `:root{${toCss(CONFIG.COLORS.light)}}@media(prefers-color-scheme:dark){:root{${toCss(CONFIG.COLORS.dark)}}}`;
+})();
+
+/* =====================================================================
+   API
+   ===================================================================== */
+async function apiGet(params){
+  const u = new URL(CONFIG.API_URL);
+  Object.entries(params).forEach(([k,v]) => u.searchParams.set(k, v));
+  const r = await fetch(u.toString());
+  return r.json();
+}
+async function apiPost(payload){
+  const r = await fetch(CONFIG.API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(payload) });
+  return r.json();
+}
+
+async function loadMaster(){
+  if(!CONFIG.API_URL){ master = master || JSON.parse(JSON.stringify(DEMO_MASTER)); return true; }
+  try{
+    const res = await apiGet({ action:"master", pin:getPin() });
+    if(res.error === "unauthorized"){ LS.set("wl_pin",""); view = "pin"; msg = "접근코드가 올바르지 않습니다."; return false; }
+    if(res.error){ msg = res.error; }
+    else { master = res; getOps().forEach(o => applyOp(master, o)); saveMaster(); return true; }
+  }catch(e){ /* 오프라인: 캐시 사용 */ }
+  return !!master;
+}
+
+/* =====================================================================
+   작업항목 추가/수정/삭제 (시트 '작업항목' 탭에 자동 반영)
+   ===================================================================== */
+let manage = false, opsFlushing = false;
+const getOps = () => LS.get("wl_ops", []);
+const saveMaster = () => LS.set("wl_master", master);
+function applyOp(m, o){
+  m.items = m.items || [];
+  const i = m.items.findIndex(x => x.type === o.type && x.name === o.name);
+  if(o.op === "add"){ if(i < 0) m.items.push({ type:o.type, name:o.name }); }
+  else if(o.op === "del"){ if(i >= 0) m.items.splice(i,1); }
+  else if(o.op === "rename" && i >= 0){
+    if(m.items.some(x => x.type === o.type && x.name === o.newName)) m.items.splice(i,1); else m.items[i].name = o.newName;
+  }
+}
+function itemOp(o){ applyOp(master, o); saveMaster(); const ops = getOps(); ops.push(o); LS.set("wl_ops", ops); flushOps(); }
+function ensureSeeded(type){   // 시트에 항목이 없던 작업구분은 기본 항목을 시트로 옮겨 수정/삭제 가능하게 함
+  if(!master.items.some(i => i.type === type)) (CONFIG.CHECKLISTS[type] || []).forEach(n => itemOp({ op:"add", type, name:n }));
+}
+function addMasterItem(name){
+  name = (name || "").trim(); if(!name) return;
+  ensureSeeded(S.type); itemOp({ op:"add", type:S.type, name });
+  if(!S.items.includes(name)) S.items.push(name);
+  saveDraft(); render();
+}
+async function flushOps(){
+  if(opsFlushing || !CONFIG.API_URL || !navigator.onLine) return;
+  const ops = getOps(); if(!ops.length) return;
+  opsFlushing = true;
+  try{
+    const r = await apiPost({ pin:getPin(), action:"itemops", ops });
+    if(r && r.ok) LS.set("wl_ops", getOps().slice(ops.length));
+  }catch(e){} finally { opsFlushing = false; }
+  if(getOps().length && navigator.onLine) setTimeout(flushOps, 2000);
+}
+
+/* 이어서 작성: 선택한 날짜의 본인 마지막 일지 */
+function resumeCandidate(){
+  const ls = getLogs().filter(l => l.writer === S.writer && l.date === S.date && /^\d\d:\d\d$/.test(l.end || ""));
+  return ls.sort((a,b) => toMin(b.end) - toMin(a.end))[0] || null;
+}
+
+/* =====================================================================
+   단계 정의
+   ===================================================================== */
+function stepIds(){
+  const a = ["date","writer","affil"];
+  if(S.affil === "외주") a.push("vendor","workers");
+  a.push("project","type","items","time","status","detail","notes","photos","confirm");
+  return a;
+}
+const TITLES = { date:"작성일", writer:"작성자", affil:"소속", vendor:"외주업체", workers:"외주 작업자", project:"프로젝트",
+  type:"작업 구분", items:"작업 항목", time:"작업 시간", status:"진행 상태", detail:"세부 작업 내용", notes:"특이사항 / 후속조치",
+  photos:"사진 첨부", confirm:"확인" };
+
+function toMin(t){ const [h,m] = t.split(":").map(Number); return h*60 + m; }
+function fromMin(m){ m = (m % 1440 + 1440) % 1440; return `${pad(Math.floor(m/60))}:${pad(m%60)}`; }
+function totalMin(){
+  if(S.slots && S.slots.length) return S.slots.reduce((s,i) => { const p = CONFIG.TIME.presets[i]; return s + toMin(p[1]) - toMin(p[0]); }, 0);
+  let d = toMin(S.end) - toMin(S.start); if(d <= 0) d += 1440; return d;
+}
+function toggleSlot(i){
+  const s = S.slots || [];
+  if(s.includes(i)){ S.slots = (i === Math.min(...s) || i === Math.max(...s)) ? s.filter(x => x !== i) : [i]; }
+  else if(s.length && (i === Math.min(...s) - 1 || i === Math.max(...s) + 1)) S.slots = s.concat(i);
+  else S.slots = [i];
+  S.slots.sort((a,b) => a-b);
+  if(S.slots.length){ S.start = CONFIG.TIME.presets[S.slots[0]][0]; S.end = CONFIG.TIME.presets[S.slots[S.slots.length-1]][1]; }
+}
+const hoursNum = () => Math.round(totalMin()/60*100)/100;
+const hoursTxt = () => { const m = totalMin(); return `${Math.floor(m/60)}시간` + (m%60 ? ` ${m%60}분` : ""); };
+
+function valid(id){
+  switch(id){
+    case "date": return !!S.date;
+    case "writer": return !!S.writer;
+    case "affil": return !!S.affil;
+    case "vendor": return !!S.vendor;
+    case "workers": return S.workers.length > 0;
+    case "project": return !!(S.yard && S.hull && S.equip);
+    case "type": return !!S.type;
+    case "items": return S.items.length > 0;
+    case "time": return !!(S.start && S.end);
+    case "status": return !!S.status;
+    case "detail": return S.detail.trim().length > 0;
+    default: return true;
+  }
+}
+const yardName = c => (master.projects.find(p => p.yard === c && p.yardName) || {}).yardName || c;
+const projLabel = () => `${S.yard}-${S.hull}-${S.equip}`;
+
+/* =====================================================================
+   이동
+   ===================================================================== */
+function go(id){ S.step = id; saveDraft(); render(); $("#main").scrollTop = 0; }
+function advance(){
+  const ids = stepIds(), i = ids.indexOf(S.step);
+  if(editing){
+    const bad = ids.slice(0, ids.indexOf("confirm")).find(x => !valid(x));
+    if(!bad){ editing = false; return go("confirm"); }
+    return go(bad);
+  }
+  go(ids[Math.min(i+1, ids.length-1)]);
+}
+function back(){
+  const ids = stepIds(), i = ids.indexOf(S.step);
+  if(i > 0) go(ids[i-1]);
+}
+
+/* =====================================================================
+   렌더링
+   ===================================================================== */
+function render(){
+  $("#tab-w").classList.toggle("on", view !== "mylogs");
+  $("#tab-m").classList.toggle("on", view === "mylogs");
+  const qn = getQueue().length, b = $("#banner");
+  b.style.display = qn ? "block" : "none";
+  b.textContent = qn ? `전송 대기 ${qn}건 (연결되면 자동 전송)` : "";
+  if(view === "pin") return renderPin();
+  if(view === "mylogs") return renderLogs();
+  if(view === "done") return renderDone();
+  if(!master){ $("#main").innerHTML = `<p class="hint">마스터 데이터를 불러오는 중…</p>`; $("#foot").innerHTML = `<button class="btn" data-a="retry">다시 시도</button>`; $("#cnt").textContent = msg; return; }
+
+  const ids = stepIds(), i = ids.indexOf(S.step) < 0 ? 0 : ids.indexOf(S.step);
+  S.step = ids[i];
+  $("#bar").style.width = `${(i+1)/ids.length*100}%`;
+  $("#cnt").textContent = `${i+1} / ${ids.length}  ·  ${TITLES[S.step]}`;
+  $("#main").innerHTML = STEP[S.step]();
+  const last = S.step === "confirm";
+  $("#foot").innerHTML = `<button class="btn" data-a="back" ${i===0?"disabled":""}>${last?"수정":"이전"}</button>` +
+    (last ? `<button class="btn pri" data-a="submit" ${busy?"disabled":""}>${busy?"전송 중…":"제출"}</button>`
+          : `<button class="btn pri" data-a="next" ${valid(S.step)?"":"disabled"}>${editing?"확인 화면으로":"다음"}</button>`);
+  if(S.step === "project") renderProjectLists();
+}
+
+function opts(list, field, cur){
+  return list.map(v => `<button class="opt ${v===cur?"sel":""}" data-a="pick" data-f="${field}" data-v="${esc(v)}">${esc(v)}</button>`).join("");
+}
+
+const STEP = {
+  date(){
+    const rl = resumeCandidate();
+    const card = rl ? `<div class="card"><div class="t">이어서 작성</div>
+      <div class="s">${esc(S.date)} 마지막 일지: ${esc(rl.yard)}-${esc(rl.hull)}-${esc(rl.equip)} · ${esc(rl.type)} · ~${esc(rl.end)}</div>
+      <button class="btn pri" style="width:100%" data-a="resume">같은 프로젝트로 이어서 (시작 ${esc(rl.end)})</button></div>` : "";
+    return `<h2>작성일</h2><p class="hint">작업한 날짜를 선택하세요.</p>${card}
+      <button class="opt ${S.date===ymd(new Date())?"sel":""}" data-a="pick" data-f="date" data-v="${ymd(new Date())}">오늘 <small>${ymd(new Date())}</small></button>
+      <button class="opt ${S.date===addDays(-1)?"sel":""}" data-a="pick" data-f="date" data-v="${addDays(-1)}">어제 <small>${addDays(-1)}</small></button>
+      <div class="lbl">날짜 선택</div><input type="date" id="datepick" value="${esc(S.date)}">`;
+  },
+  writer(){
+    const names = master.workers.map(w => w.name);
+    return `<h2>작성자</h2><p class="hint">본인 이름을 선택하세요.</p><div class="grid">${names.map(n =>
+      `<button class="opt ${n===S.writer?"sel":""}" data-a="pick" data-f="writer" data-v="${esc(n)}">${esc(n)}</button>`).join("")}</div>
+      <div class="lbl">목록에 없으면 직접 추가</div><input type="text" id="addwriter" placeholder="이름 입력 후 Enter">`;
+  },
+  affil(){
+    return `<h2>소속</h2><p class="hint">&nbsp;</p><div class="grid">${["자사","외주"].map(v =>
+      `<button class="opt ${v===S.affil?"sel":""}" style="min-height:90px;font-size:22px" data-a="pick" data-f="affil" data-v="${v}">${v}</button>`).join("")}</div>`;
+  },
+  vendor(){
+    return `<h2>외주업체</h2><p class="hint">업체를 선택하세요.</p>${opts(master.vendors.map(v => v.name), "vendor", S.vendor)}
+      <div class="lbl">목록에 없으면 직접 추가</div><input type="text" id="addvendor" placeholder="업체명 입력 후 Enter">`;
+  },
+  workers(){
+    const list = master.workers.filter(w => w.affil === "외주" && w.vendor === S.vendor).map(w => w.name);
+    S.workers.forEach(n => { if(!list.includes(n)) list.push(n); });
+    return `<h2>외주 작업자</h2><p class="hint">${esc(S.vendor)} · 작업한 사람을 모두 선택하세요.</p>
+      <div class="chips">${list.map(n => `<button class="chip ${S.workers.includes(n)?"sel":""}" data-a="toggle" data-f="workers" data-v="${esc(n)}">${esc(n)}</button>`).join("")}</div>
+      <div class="lbl">직접 추가</div><input type="text" id="addworker" placeholder="이름 입력 후 Enter">`;
+  },
+  project(){
+    const rec = LS.get("wl_recent", []);
+    return `<h2>프로젝트</h2><p class="hint">진행 중인 프로젝트를 선택하세요. 호선·장비·시리얼로 검색할 수 있습니다.</p>
+      ${rec.length ? `<div class="lbl">최근 프로젝트</div><div class="chips">${rec.map((r,i) =>
+        `<button class="chip" data-a="recent" data-v="${i}">${esc(r.yard)}-${esc(r.hull)}-${esc(r.equip)}</button>`).join("")}</div>` : ""}
+      <input type="text" id="q" placeholder="검색 (호선, 장비, 시리얼, 선주)" value="${esc(q)}">
+      <div id="plist"></div>`;
+  },
+  type(){ return `<h2>작업 구분</h2><p class="hint">&nbsp;</p><div class="grid">${CONFIG.WORK_TYPES.map(v =>
+      `<button class="opt ${v===S.type?"sel":""}" data-a="pick" data-f="type" data-v="${esc(v)}">${esc(v)}</button>`).join("")}</div>`; },
+  items(){
+    const fromMaster = master.items.filter(i => i.type === S.type).map(i => i.name);
+    const list = (fromMaster.length ? fromMaster : (CONFIG.CHECKLISTS[S.type] || [])).slice();
+    S.items.forEach(n => { if(!list.includes(n)) list.push(n); });
+    return `<h2>작업 항목</h2><p class="hint">${esc(S.type)} · 해당되는 항목을 모두 선택하세요.</p>
+      <div class="chips">${list.map(n => `<button class="chip lp ${S.items.includes(n)?"sel":""}" data-a="toggle" data-f="items" data-v="${esc(n)}">${esc(n)}</button>`).join("")}</div>
+      <div style="display:flex;gap:8px"><input type="text" id="additem" placeholder="새 항목 추가" style="margin:0"><button class="btn" style="flex:none;width:90px" data-a="additembtn">추가</button></div>
+      <p class="note">항목을 길게 누르면 수정/삭제할 수 있습니다.</p>`;
+  },
+  time(){
+    const row = (f, label) => `<div class="lbl">${label}</div><div class="tm">
+      <button data-a="tm" data-f="${f}" data-v="-${CONFIG.TIME.step}">−</button><div class="v">${S[f]}</div>
+      <button data-a="tm" data-f="${f}" data-v="${CONFIG.TIME.step}">+</button></div>`;
+    return `<h2>작업 시간</h2><p class="hint">시간대를 선택하세요. 이어진 시간대는 함께 선택할 수 있습니다.</p>
+      <div class="grid">${CONFIG.TIME.presets.map((p,i) => `<button class="opt ${(S.slots||[]).includes(i)?"sel":""}" data-a="preset" data-v="${i}">${p[0]}~${p[1]}</button>`).join("")}</div>
+      <div class="total" style="margin:12px 0">${S.start} ~ ${S.end} · 총 ${hoursTxt()}</div>
+      <div class="grid">${["start","end"].map(f => `<div class="tm2"><small>${f==="start"?"시작":"종료"} 조정</small>
+        <div><button data-a="tm" data-f="${f}" data-v="-${CONFIG.TIME.step}">−</button><b>${S[f]}</b><button data-a="tm" data-f="${f}" data-v="${CONFIG.TIME.step}">+</button></div></div>`).join("")}</div>`;
+  },
+  status(){ return `<h2>진행 상태</h2><p class="hint">&nbsp;</p>${opts(CONFIG.STATUSES, "status", S.status)}`; },
+  detail(){
+    return `<h2>세부 작업 내용</h2><p class="hint">빠른 문구를 눌러 추가할 수 있습니다.</p>
+      <div class="chips">${CONFIG.QUICK_PHRASES.map(p => `<button class="chip" data-a="phrase" data-f="detail" data-v="${esc(p)}">${esc(p)}</button>`).join("")}</div>
+      <textarea id="detail" placeholder="작업 내용을 입력하세요">${esc(S.detail)}</textarea>`;
+  },
+  notes(){ return `<h2>특이사항 / 후속조치</h2><p class="hint">없으면 그냥 다음으로 넘어가세요.</p>
+      <div class="chips">${CONFIG.QUICK_PHRASES.slice(0,4).map(p => `<button class="chip" data-a="phrase" data-f="notes" data-v="${esc(p)}">${esc(p)}</button>`).join("")}</div>
+      <textarea id="notes" placeholder="선택 입력">${esc(S.notes)}</textarea>`; },
+  photos(){
+    return `<h2>사진 첨부</h2><p class="hint">선택 사항 · 최대 ${CONFIG.PHOTO.max}장 (자동으로 크기를 줄여 업로드)</p>
+      <div class="photos">${S.photos.map((p,i) => `<div class="ph"><img src="${p}"><button data-a="delphoto" data-v="${i}">×</button></div>`).join("")}</div>
+      ${S.photos.length < CONFIG.PHOTO.max ? `<label class="btn" style="display:flex;align-items:center;justify-content:center;margin-bottom:12px">사진 추가
+        <input type="file" id="photoin" accept="image/*" multiple hidden></label>` : ""}
+      <p class="note">앱을 닫으면 첨부한 사진은 임시저장되지 않습니다.</p>`;
+  },
+  confirm(){
+    const row = (k, label, v) => `<div data-a="goto" data-v="${k}"><span>${label}</span><em>${esc(v) || "-"}</em></div>`;
+    return `<h2>확인</h2><p class="hint">항목을 누르면 해당 단계로 이동해 수정합니다.</p><div class="sum">
+      ${row("date","작성일",S.date)}${row("writer","작성자",S.writer)}${row("affil","소속",S.affil)}
+      ${S.affil==="외주" ? row("vendor","외주업체",S.vendor) + row("workers","외주작업자",S.workers.join(", ")) : ""}
+      ${row("project","프로젝트",projLabel())}${row("type","작업구분",S.type)}${row("items","작업항목",S.items.join(", "))}
+      ${row("time","작업시간",`${S.start} ~ ${S.end} (${hoursTxt()})`)}${row("status","진행상태",S.status)}
+      ${row("detail","세부작업",S.detail)}${row("notes","특이사항",S.notes)}${row("photos","사진",S.photos.length ? S.photos.length+"장" : "")}</div>
+      ${msg ? `<div class="err">${esc(msg)}</div>` : ""}`;
+  }
+};
+
+/* ---------- 프로젝트 선택 ---------- */
+let yf = "";   // 조선소 필터(선택값 아님)
+function projMatches(p, term){
+  if(!term) return true;
+  return [p.yard, p.yardName, p.hull, p.owner, p.name, p.code, p.serial].join(" ").toLowerCase().includes(term.toLowerCase());
+}
+function renderProjectLists(){
+  const el = $("#plist"); if(!el) return;
+  const yards = [...new Set(master.projects.map(p => p.yard))];
+  if(yf && !yards.includes(yf)) yf = "";
+  const list = master.projects.filter(p => (!yf || p.yard === yf) && projMatches(p, q));
+  const last = S.equip ? findLastLog() : null;
+  el.innerHTML = `${yards.length > 1 ? `<div class="chips">${yards.map(y =>
+      `<button class="chip ${y===yf?"sel":""}" data-a="yard" data-v="${esc(y)}">${esc(y)}</button>`).join("")}</div>` : ""}
+    ${list.map((p,i) => `<button class="opt ${p.yard===S.yard&&p.hull===S.hull&&p.name===S.equip?"sel":""}" data-a="proj" data-i="${master.projects.indexOf(p)}">${esc(p.yard)}-${esc(p.hull)}-${esc(p.name)}
+      <small>${esc(p.yardName || p.yard)} · ${esc(p.owner)}${p.serial ? " · " + esc(p.serial) : ""}</small></button>`).join("") || `<p class="hint">해당하는 프로젝트가 없습니다.</p>`}
+    ${last ? `<div class="card"><div class="t">직전 일지 불러오기</div><div class="s">${esc(last.date)} · ${esc(last.type)} · ${esc(last.status)}</div>
+      <button class="btn" style="width:100%" data-a="prefill">작업구분·항목·시간·상태 미리 채우기</button></div>` : ""}`;
+}
+function findLastLog(){
+  return getLogs().filter(l => l.yard === S.yard && String(l.hull) === S.hull && l.equip === S.equip)
+    .sort((a,b) => (b.date + (b.id||"")).localeCompare(a.date + (a.id||"")))[0] || null;
+}
+async function fetchLast(){
+  if(!CONFIG.API_URL || !navigator.onLine) return;
+  try{
+    const r = await apiGet({ action:"last", pin:getPin(), yard:S.yard, hull:S.hull, equip:S.equip });
+    if(r.log){ const logs = getLogs().filter(l => l.id !== r.log.id); logs.push(r.log); LS.set("wl_logs", logs); if(S.step === "project") renderProjectLists(); }
+  }catch(e){}
+}
+function afterProjectChange(){ saveDraft(); render(); if(S.equip) fetchLast(); }
+
+/* ---------- 내 일지 ---------- */
+async function loadMyLogs(){
+  if(!CONFIG.API_URL || !navigator.onLine || !S.writer) return;
+  try{
+    const r = await apiGet({ action:"mylogs", pin:getPin(), writer:S.writer });
+    if(r.logs){ const other = getLogs().filter(l => l.writer !== S.writer); LS.set("wl_logs", other.concat(r.logs)); if(view === "mylogs") renderLogs(); else if(view === "wizard" && S.step === "date") render(); }
+  }catch(e){}
+}
+function renderLogs(){
+  $("#bar").style.width = "0"; $("#cnt").textContent = "내 일지"; $("#foot").innerHTML = "";
+  const mine = getLogs().filter(l => l.writer === S.writer).sort((a,b) => (b.date + (b.id||"")).localeCompare(a.date + (a.id||"")));
+  const projs = [...new Set(mine.map(l => `${l.yard}-${l.hull}-${l.equip}`))];
+  const list = logFilter ? mine.filter(l => `${l.yard}-${l.hull}-${l.equip}` === logFilter) : mine;
+  $("#main").innerHTML = `<h2>${esc(S.writer) || "작성자 미선택"}</h2>
+    <select id="logfilter"><option value="">전체 프로젝트</option>${projs.map(p => `<option ${p===logFilter?"selected":""}>${esc(p)}</option>`).join("")}</select>
+    ${list.slice(0,50).map(l => { const i = mine.indexOf(l); return `<div class="card"><div class="t">${esc(l.yard)}-${esc(l.hull)}-${esc(l.equip)}</div>
+      <div class="s">${esc(l.date)} · ${esc(l.type)} · ${esc(l.start)}~${esc(l.end)} · ${esc(l.status)}</div>
+      <div>${esc((l.items||[]).join(", "))}</div>
+      <button class="btn" style="width:100%;margin-top:8px" data-a="copylog" data-v="${i}">복사해서 새로 작성</button></div>`; }).join("") || `<p class="hint">작성한 일지가 없습니다.</p>`}`;
+}
+
+function renderPin(){
+  $("#bar").style.width = "0"; $("#cnt").textContent = "접근코드"; $("#foot").innerHTML = `<button class="btn pri" data-a="pinok">확인</button>`;
+  $("#main").innerHTML = `<h2>접근코드</h2><p class="hint">팀에서 공유한 접근코드(PIN)를 입력하세요.</p>
+    <input type="password" id="pin" inputmode="numeric" autocomplete="off" placeholder="접근코드">${msg ? `<div class="err">${esc(msg)}</div>` : ""}`;
+}
+function renderDone(){
+  $("#bar").style.width = "100%"; $("#cnt").textContent = "완료";
+  $("#main").innerHTML = doneInfo.queued
+    ? `<div class="ok"><h2>대기열에 보관됨</h2><p>네트워크가 연결되면 자동으로 전송됩니다.</p></div>`
+    : `<div class="ok"><h2>제출 완료</h2><code>${esc(doneInfo.id)}</code></div>`;
+  $("#foot").innerHTML = `<button class="btn pri" data-a="newlog">새 일지 작성</button>`;
+}
+
+/* =====================================================================
+   제출 / 대기열
+   ===================================================================== */
+function buildPayload(){
+  return { pin:getPin(), clientId:S.clientId, date:S.date, writer:S.writer, affil:S.affil,
+    vendor:S.affil==="외주" ? S.vendor : "", workers:S.affil==="외주" ? S.workers : [],
+    yard:S.yard, hull:S.hull, equip:S.equip, type:S.type, items:S.items, start:S.start, end:S.end,
+    hours:hoursNum(), status:S.status, detail:S.detail.trim(), notes:S.notes.trim(), photos:S.photos };
+}
+function toLog(p, id){
+  return { id, date:p.date, writer:p.writer, affil:p.affil, vendor:p.vendor, workers:p.workers, yard:p.yard, hull:p.hull, equip:p.equip,
+    type:p.type, items:p.items, start:p.start, end:p.end, hours:p.hours, status:p.status, detail:p.detail, notes:p.notes };
+}
+function rememberRecent(){
+  const r = LS.get("wl_recent", []).filter(x => !(x.yard===S.yard && x.hull===S.hull && x.equip===S.equip));
+  r.unshift({ yard:S.yard, hull:S.hull, equip:S.equip });
+  LS.set("wl_recent", r.slice(0, CONFIG.RECENT_MAX));
+}
+function finish(info, p){
+  LS.set("wl_writer", S.writer); rememberRecent();
+  const logs = getLogs(); logs.push(toLog(p, info.id || ("대기-" + p.clientId))); LS.set("wl_logs", logs.slice(-300));
+  LS.set("wl_draft", {});
+  doneInfo = info; view = "done"; busy = false; render();
+}
+async function submit(){
+  if(busy) return;
+  const bad = stepIds().find(x => !valid(x));
+  if(bad){ msg = `"${TITLES[bad]}" 항목을 확인하세요.`; return go(bad); }
+  busy = true; msg = ""; render();
+  const p = buildPayload();
+  if(!CONFIG.API_URL){ return finish({ id:`${p.yard}-${p.hull}-${p.equip}-${p.date.replace(/-/g,"")}-${p.writer}-01 (데모)` }, p); }
+  let res;
+  try{ res = await apiPost(p); }
+  catch(e){
+    const qd = getQueue(); qd.push(p);
+    if(!LS.set("wl_queue", qd)){ busy = false; msg = "저장 공간이 부족합니다. 사진 수를 줄여 다시 시도하세요."; return render(); }
+    return finish({ queued:true }, p);
+  }
+  if(res && res.ok) return finish({ id:res.id }, p);
+  busy = false;
+  if(res && res.error === "unauthorized"){ view = "pin"; msg = "접근코드를 다시 입력하세요."; return render(); }
+  msg = "제출 실패: " + ((res && res.error) || "알 수 없는 오류"); render();
+}
+let flushing = false;
+async function flushQueue(){
+  if(flushing || !CONFIG.API_URL || !navigator.onLine) return;
+  flushing = true;
+  try{
+    let qd = getQueue();
+    while(qd.length){
+      const p = Object.assign({}, qd[0], { pin:getPin() });
+      let res; try{ res = await apiPost(p); }catch(e){ break; }
+      if(res && res.ok){
+        qd = getQueue().slice(1); LS.set("wl_queue", qd);
+        const logs = getLogs().map(l => l.id === "대기-" + p.clientId ? Object.assign(l, { id:res.id }) : l); LS.set("wl_logs", logs);
+      } else { if(res && res.error === "unauthorized"){ view = "pin"; msg = "접근코드를 다시 입력하세요."; } break; }
+    }
+  } finally { flushing = false; render(); }
+}
+
+/* ---------- 사진 리사이즈 ---------- */
+function resizeImage(file){
+  return new Promise((resolve, reject) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const m = CONFIG.PHOTO.maxSize, k = Math.min(1, m / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); resolve(c.toDataURL("image/jpeg", CONFIG.PHOTO.quality));
+    };
+    img.onerror = reject; img.src = url;
+  });
+}
+
+/* =====================================================================
+   이벤트
+   ===================================================================== */
+const AUTO = ["date","writer","affil","vendor","type","status"];
+function pick(f, v){
+  if(f === "type" && S.type !== v) S.items = [];
+  if(f === "affil" && v === "자사"){ S.vendor = ""; S.workers = []; }
+  if(f === "vendor" && S.vendor !== v) S.workers = [];
+  S[f] = v; saveDraft(); render();
+  if(f === "writer") loadMyLogs();
+  if(AUTO.includes(f)) setTimeout(advance, 160);
+}
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-a]"); if(!t) return;
+  const a = t.dataset.a, v = t.dataset.v, f = t.dataset.f;
+  switch(a){
+    case "view":
+      view = v === "mylogs" ? "mylogs" : "wizard"; if(view === "mylogs"){ renderLogs(); loadMyLogs(); } else render(); break;
+    case "pick": pick(f, v); break;
+    case "toggle": { if(lpFired){ lpFired = false; break; } const arr = S[f], i = arr.indexOf(v); i < 0 ? arr.push(v) : arr.splice(i,1); saveDraft(); render(); break; }
+    case "phrase": { S[f] = (S[f] ? S[f].trim() + "\n" : "") + v; saveDraft(); const ta = $("#"+f); if(ta) ta.value = S[f]; break; }
+    case "next": advance(); break;
+    case "back": back(); break;
+    case "goto": editing = true; go(v); break;
+    case "submit": submit(); break;
+    case "retry": if(await loadMaster()) render(); else render(); break;
+    case "tm": S[f] = fromMin(toMin(S[f]) + Number(v)); S.slots = []; saveDraft(); render(); break;
+    case "preset": toggleSlot(Number(v)); saveDraft(); render(); break;
+    case "yard": yf = yf === v ? "" : v; renderProjectLists(); break;
+    case "proj": { const p = master.projects[Number(t.dataset.i)]; if(p){ S.yard = p.yard; S.hull = p.hull; S.equip = p.name; afterProjectChange(); } break; }
+    case "recent": { const r = LS.get("wl_recent", [])[v]; if(r){ S.yard = r.yard; S.hull = r.hull; S.equip = r.equip; afterProjectChange(); } break; }
+    case "prefill": { const l = findLastLog(); if(l){ S.type = l.type; S.items = (l.items||[]).slice(); S.start = l.start || S.start; S.end = l.end || S.end; S.status = l.status; saveDraft(); advance(); } break; }
+    case "menuclose": closeMenu(); break;
+    case "additembtn": addMasterItem($("#additem").value); break;
+    case "itemedit": {
+      closeMenu();
+      const nn = (prompt("항목 이름 수정", v) || "").trim(); if(!nn || nn === v) break;
+      ensureSeeded(S.type); itemOp({ op:"rename", type:S.type, name:v, newName:nn });
+      S.items = S.items.map(x => x === v ? nn : x).filter((x,i,a) => a.indexOf(x) === i); saveDraft(); render(); break; }
+    case "itemdel":
+      closeMenu();
+      if(!confirm(`"${v}" 항목을 삭제할까요?\n(모든 작업자의 목록에서 사라집니다)`)) break;
+      ensureSeeded(S.type); itemOp({ op:"del", type:S.type, name:v }); S.items = S.items.filter(x => x !== v); saveDraft(); render(); break;
+    case "resume": {
+      const l = resumeCandidate(); if(!l) break;
+      const st = l.end, en = toMin(st) < toMin(CONFIG.TIME.defaultEnd) ? CONFIG.TIME.defaultEnd : fromMin(toMin(st) + 60);
+      // (슬롯 선택은 초기화 – 시작/종료만 미리 채움)
+      S = Object.assign(freshState(), { date:S.date, writer:S.writer, affil:l.affil, vendor:l.vendor||"", workers:(l.workers||[]).slice(),
+        yard:l.yard, hull:String(l.hull), equip:l.equip, start:st, end:en });
+      editing = false; go("type"); break; }
+    case "delphoto": S.photos.splice(v,1); render(); break;
+    case "copylog": {
+      const mine = getLogs().filter(l => l.writer === S.writer).sort((a,b) => (b.date + (b.id||"")).localeCompare(a.date + (a.id||"")));
+      const l = mine[v]; if(!l) break;
+      S = Object.assign(freshState(), { writer:l.writer, affil:l.affil, vendor:l.vendor||"", workers:(l.workers||[]).slice(), yard:l.yard, hull:String(l.hull),
+        equip:l.equip, type:l.type, items:(l.items||[]).slice(), start:l.start, end:l.end, status:l.status, detail:l.detail||"", notes:l.notes||"" });
+      view = "wizard"; editing = true; go("confirm"); break; }
+    case "pinok": {
+      const val = ($("#pin").value || "").trim(); if(!val) break;
+      LS.set("wl_pin", val); msg = ""; view = "wizard"; $("#main").innerHTML = `<p class="hint">확인 중…</p>`;
+      await loadMaster(); render(); break; }
+    case "newlog": S = freshState(); LS.set("wl_draft", {}); saveDraft(); view = "wizard"; editing = false; msg = ""; render(); break;
+  }
+});
+/* 항목 길게 누르기 -> 수정/삭제 메뉴 */
+let lpTimer = null, lpFired = false;
+function closeMenu(){ const m = $("#sheet"); if(m) m.remove(); }
+function openItemMenu(name){
+  closeMenu();
+  const d = document.createElement("div"); d.id = "sheet";
+  d.innerHTML = `<div class="sheetbox"><div class="t">${esc(name)}</div>
+    <button class="btn" data-a="itemedit" data-v="${esc(name)}">수정</button>
+    <button class="btn" style="color:var(--danger)" data-a="itemdel" data-v="${esc(name)}">삭제</button>
+    <button class="btn" data-a="menuclose">취소</button></div>`;
+  document.body.appendChild(d);
+}
+document.addEventListener("pointerdown", e => {
+  const t = e.target.closest(".lp"); lpFired = false; clearTimeout(lpTimer);
+  if(t) lpTimer = setTimeout(() => { lpFired = true; if(navigator.vibrate) navigator.vibrate(30); openItemMenu(t.dataset.v); }, 550);
+});
+["pointerup","pointercancel","pointerleave"].forEach(ev => document.addEventListener(ev, () => clearTimeout(lpTimer)));
+document.addEventListener("contextmenu", e => { if(e.target.closest(".lp")) e.preventDefault(); });
+
+document.addEventListener("input", e => {
+  if(e.target.id === "detail" || e.target.id === "notes"){ S[e.target.id] = e.target.value; saveDraft(); const n = $("[data-a=next]"); if(n) n.disabled = !valid(S.step); }
+  if(e.target.id === "q"){ q = e.target.value; renderProjectLists(); }
+});
+document.addEventListener("change", async e => {
+  const id = e.target.id;
+  if(id === "datepick" && e.target.value){ pick("date", e.target.value); }
+  if(id === "logfilter"){ logFilter = e.target.value; renderLogs(); }
+  if(id === "photoin"){
+    for(const file of [...e.target.files]){
+      if(S.photos.length >= CONFIG.PHOTO.max) break;
+      try{ S.photos.push(await resizeImage(file)); }catch(err){}
+    }
+    render();
+  }
+});
+document.addEventListener("keydown", e => {
+  if(e.key !== "Enter") return;
+  const id = e.target.id, val = (e.target.value || "").trim();
+  if(id === "pin"){ document.querySelector("[data-a=pinok]").click(); return; }
+  if(!val) return;
+  if(id === "addwriter"){ if(!master.workers.some(w => w.name === val)) master.workers.push({ name:val, affil:"", vendor:"" }); pick("writer", val); }
+  else if(id === "addvendor"){ if(!master.vendors.some(v => v.name === val)) master.vendors.push({ name:val, phone:"" }); pick("vendor", val); }
+  else if(id === "addworker"){ if(!S.workers.includes(val)) S.workers.push(val); saveDraft(); render(); }
+  else if(id === "additem"){ addMasterItem(val); }
+});
+window.addEventListener("online", () => { flushOps(); flushQueue(); });
+
+/* =====================================================================
+   시작
+   ===================================================================== */
+(async function init(){
+  if(CONFIG.API_URL && !getPin()){ view = "pin"; render(); return; }
+  render();
+  await loadMaster();
+  render();
+  flushOps();
+  flushQueue();
+  loadMyLogs();          // 앱 시작 때 서버에서 내 최근 일지를 받아 '이어서 작성'에 사용
+})();
+if("serviceWorker" in navigator && false){ /* 필요 시 오프라인 캐시용 서비스워커 추가 */ }
+</script>
+</body>
+</html>
