@@ -270,12 +270,24 @@ const TITLES = { date:"작성일", writer:"작성자", affil:"소속", vendor:"�
 
 function toMin(t){ const [h,m] = t.split(":").map(Number); return h*60 + m; }
 function fromMin(m){ m = (m % 1440 + 1440) % 1440; return `${pad(Math.floor(m/60))}:${pad(m%60)}`; }
+function activeSlots(){
+  const s = (S.slots || []).filter(i => CONFIG.TIME.presets[i]);
+  if(!s.length) return [];
+  const P = CONFIG.TIME.presets;
+  // 시작/종료가 슬롯과 어긋나면(이어쓰기·직전일지·± 조정 등) 슬롯 무시
+  return (S.start === P[s[0]][0] && S.end === P[s[s.length-1]][1]) ? s : [];
+}
 function totalMin(){
-  if(S.slots && S.slots.length) return S.slots.reduce((s,i) => { const p = CONFIG.TIME.presets[i]; return s + toMin(p[1]) - toMin(p[0]); }, 0);
+  const s = activeSlots();
+  if(s.length) return s.reduce((t,i) => { const p = CONFIG.TIME.presets[i]; return t + toMin(p[1]) - toMin(p[0]); }, 0);
   let d = toMin(S.end) - toMin(S.start); if(d <= 0) d += 1440; return d;
 }
+function timeTxt(){
+  const s = activeSlots();
+  return s.length > 1 ? s.map(i => CONFIG.TIME.presets[i].join("~")).join(", ") : `${S.start} ~ ${S.end}`;
+}
 function toggleSlot(i){
-  const s = S.slots || [];
+  const s = activeSlots();
   if(s.includes(i)){ S.slots = (i === Math.min(...s) || i === Math.max(...s)) ? s.filter(x => x !== i) : [i]; }
   else if(s.length && (i === Math.min(...s) - 1 || i === Math.max(...s) + 1)) S.slots = s.concat(i);
   else S.slots = [i];
@@ -420,8 +432,8 @@ const STEP = {
       <button data-a="tm" data-f="${f}" data-v="-${CONFIG.TIME.step}">−</button><div class="v">${S[f]}</div>
       <button data-a="tm" data-f="${f}" data-v="${CONFIG.TIME.step}">+</button></div>`;
     return `<h2>작업 시간</h2><p class="hint">시간대를 선택하세요. 이어진 시간대는 함께 선택할 수 있습니다.</p>
-      <div class="grid">${CONFIG.TIME.presets.map((p,i) => `<button class="opt ${(S.slots||[]).includes(i)?"sel":""}" data-a="preset" data-v="${i}">${p[0]}~${p[1]}</button>`).join("")}</div>
-      <div class="total" style="margin:12px 0">${S.start} ~ ${S.end} · 총 ${hoursTxt()}</div>
+      <div class="grid">${CONFIG.TIME.presets.map((p,i) => `<button class="opt ${activeSlots().includes(i)?"sel":""}" data-a="preset" data-v="${i}">${p[0]}~${p[1]}</button>`).join("")}</div>
+      <div class="total" style="margin:12px 0">${timeTxt()} · 총 ${hoursTxt()}</div>
       <div class="grid">${["start","end"].map(f => `<div class="tm2"><small>${f==="start"?"시작":"종료"} 조정</small>
         <div><button data-a="tm" data-f="${f}" data-v="-${CONFIG.TIME.step}">−</button><b>${S[f]}</b><button data-a="tm" data-f="${f}" data-v="${CONFIG.TIME.step}">+</button></div></div>`).join("")}</div>`;
   },
@@ -447,7 +459,7 @@ const STEP = {
       ${row("date","작성일",S.date)}${row("writer","작성자",`${S.writer} (${S.affil==="외주" ? S.vendor : "자사"})`)}
       ${row("workers","함께 작업",S.workers.join(", "))}
       ${row("project","프로젝트",projLabel())}${row("type","작업구분",S.type)}${row("items","작업항목",S.items.join(", "))}
-      ${row("time","작업시간",`${S.start} ~ ${S.end} (${hoursTxt()})`)}${row("status","진행상태",S.status)}
+      ${row("time","작업시간",`${timeTxt()} (${hoursTxt()})`)}${row("status","진행상태",S.status)}
       ${row("detail","세부작업",S.detail)}${row("notes","특이사항",S.notes)}${row("photos","사진",S.photos.length ? S.photos.length+"장" : "")}</div>
       ${msg ? `<div class="err">${esc(msg)}</div>` : ""}`;
   }
