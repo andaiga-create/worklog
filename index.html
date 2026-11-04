@@ -65,6 +65,8 @@ textarea{min-height:140px;resize:vertical}
 .err{color:var(--danger);font-weight:600;margin-bottom:10px}
 .ok{background:var(--selBg);border-radius:14px;padding:18px;text-align:center}
 .ok code{display:block;margin:10px 0;font-size:15px;word-break:break-all}
+.frow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px}
+.frow select{margin:0;min-height:48px;padding:6px 8px;font-size:15px;min-width:0}
 .lp{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
 #sheet{position:fixed;inset:0;background:#0008;display:flex;align-items:flex-end;justify-content:center;z-index:10}
 .sheetbox{width:100%;max-width:640px;background:var(--card);border-radius:18px 18px 0 0;padding:16px 14px calc(env(safe-area-inset-bottom) + 14px);display:flex;flex-direction:column;gap:10px}
@@ -394,9 +396,10 @@ const STEP = {
   },
   project(){
     const rec = LS.get("wl_recent", []);
-    return `<h2>프로젝트</h2><p class="hint">진행 중인 프로젝트를 선택하세요. 위 필터로 목록을 좁힐 수 있습니다.</p>
+    return `<h2>프로젝트</h2><p class="hint">진행 중인 프로젝트를 선택하세요.</p>
       ${rec.length ? `<div class="lbl">최근 프로젝트</div><div class="chips">${rec.map((r,i) =>
         `<button class="chip" data-a="recent" data-v="${i}">${esc(r.yard)}-${esc(r.hull)}-${esc(r.equip)}</button>`).join("")}</div>` : ""}
+      <input type="text" id="q" placeholder="검색 (호선, 장비, 시리얼, 선주)" value="${esc(q)}" style="margin-bottom:8px">
       <div id="plist"></div>`;
   },
   type(){ return `<h2>작업 구분</h2><p class="hint">&nbsp;</p><div class="grid">${CONFIG.WORK_TYPES.map(v =>
@@ -449,20 +452,29 @@ const STEP = {
 };
 
 /* ---------- 프로젝트 선택 ---------- */
-let yf = "", hf = "";   // 조선소 / 호선 필터(선택값 아님). hf = "조선소|호선"
+let yf = "", hf = "", ef = "";   // 조선소 / 호선 / 장비 필터(선택값 아님). hf="조선소|호선", ef="조선소|호선|장비"
+function projMatches(p, term){
+  if(!term) return true;
+  return [p.yard, p.yardName, p.hull, p.owner, p.name, p.code, p.serial].join(" ").toLowerCase().includes(term.toLowerCase());
+}
 function renderProjectLists(){
   const el = $("#plist"); if(!el) return;
   const all = master.projects;
+  const key = p => p.yard + "|" + p.hull + "|" + p.name;
   const yards = [...new Set(all.map(p => p.yard))];
   if(yf && !yards.includes(yf)) yf = "";
-  const hulls = [...new Set(all.filter(p => !yf || p.yard === yf).map(p => p.yard + "|" + p.hull))];
+  const byY = all.filter(p => !yf || p.yard === yf);
+  const hulls = [...new Set(byY.map(p => p.yard + "|" + p.hull))];
   if(hf && !hulls.includes(hf)) hf = "";
-  const list = all.filter(p => (!yf || p.yard === yf) && (!hf || p.yard + "|" + p.hull === hf));
+  const byH = byY.filter(p => !hf || p.yard + "|" + p.hull === hf);
+  if(ef && !byH.some(p => key(p) === ef)) ef = "";
+  const list = byH.filter(p => (!ef || key(p) === ef) && projMatches(p, q));
   const last = S.equip ? findLastLog() : null;
   const opt = (v, label, cur) => `<option value="${esc(v)}" ${v===cur?"selected":""}>${esc(label)}</option>`;
-  el.innerHTML = `<div class="grid" style="margin-bottom:12px">
-      <select id="yfsel" style="margin:0">${opt("", "조선소 전체", yf)}${yards.map(y => opt(y, y, yf)).join("")}</select>
-      <select id="hfsel" style="margin:0">${opt("", "호선 전체", hf)}${hulls.map(h => opt(h, h.replace("|","-"), hf)).join("")}</select></div>
+  el.innerHTML = `<div class="frow">
+      <select id="yfsel">${opt("", "조선소", yf)}${yards.map(y => opt(y, y, yf)).join("")}</select>
+      <select id="hfsel">${opt("", "호선", hf)}${hulls.map(h => opt(h, h.split("|")[1], hf)).join("")}</select>
+      <select id="efsel">${opt("", "장비", ef)}${byH.map(p => opt(key(p), p.name, ef)).join("")}</select></div>
     ${list.map(p => `<button class="opt ${p.yard===S.yard&&p.hull===S.hull&&p.name===S.equip?"sel":""}" data-a="proj" data-i="${all.indexOf(p)}">${esc(p.yard)}-${esc(p.hull)}-${esc(p.name)}
       <small>${esc(p.owner)}${p.serial ? " · " + esc(p.serial) : ""}</small></button>`).join("") || `<p class="hint">해당하는 프로젝트가 없습니다.</p>`}
     ${last ? `<div class="card"><div class="t">직전 일지 불러오기</div><div class="s">${esc(last.date)} · ${esc(last.type)} · ${esc(last.status)}</div>
@@ -698,8 +710,9 @@ document.addEventListener("input", e => {
 document.addEventListener("change", async e => {
   const id = e.target.id;
   if(id === "datepick" && e.target.value){ pick("date", e.target.value); }
-  if(id === "yfsel"){ yf = e.target.value; hf = ""; renderProjectLists(); }
-  if(id === "hfsel"){ hf = e.target.value; if(hf) yf = hf.split("|")[0]; renderProjectLists(); }
+  if(id === "yfsel"){ yf = e.target.value; hf = ""; ef = ""; renderProjectLists(); }
+  if(id === "hfsel"){ hf = e.target.value; ef = ""; if(hf) yf = hf.split("|")[0]; renderProjectLists(); }
+  if(id === "efsel"){ ef = e.target.value; if(ef){ const [y,h] = ef.split("|"); yf = y; hf = y + "|" + h; } renderProjectLists(); }
   if(id === "logfilter"){ logFilter = e.target.value; renderLogs(); }
   if(id === "photoin"){
     for(const file of [...e.target.files]){
