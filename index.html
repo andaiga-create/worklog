@@ -257,8 +257,8 @@ function resumeCandidate(){
    단계 정의
    ===================================================================== */
 function stepIds(){
-  const a = ["date","writer","affil"];
-  if(S.affil === "외주") a.push("vendor","workers");
+  const a = ["date","writer"];
+  a.push("workers");
   a.push("project","type","items","time","status","detail","notes","photos","confirm");
   return a;
 }
@@ -286,7 +286,7 @@ const hoursTxt = () => { const m = totalMin(); return `${Math.floor(m/60)}시간
 function valid(id){
   switch(id){
     case "date": return !!S.date;
-    case "writer": return !!S.writer;
+    case "writer": return !!(S.writer && S.affil && (S.affil === "자사" || S.vendor));
     case "affil": return !!S.affil;
     case "vendor": return !!S.vendor;
     case "workers": return S.workers.length > 0;
@@ -334,6 +334,10 @@ function render(){
   if(view === "done") return renderDone();
   if(!master){ $("#main").innerHTML = `<p class="hint">마스터 데이터를 불러오는 중…</p>`; $("#foot").innerHTML = `<button class="btn" data-a="retry">다시 시도</button>`; $("#cnt").textContent = msg; return; }
 
+  if(S.writer && !S.affil){   // 저장된 작성자의 소속을 마스터에서 자동 판별
+    const w = master.workers.find(x => x.name === S.writer);
+    if(w){ S.affil = w.affil === "외주" ? "외주" : "자사"; S.vendor = w.vendor || ""; S.workers = [wlabel(w)]; saveDraft(); }
+  }
   const ids = stepIds(), i = ids.indexOf(S.step) < 0 ? 0 : ids.indexOf(S.step);
   S.step = ids[i];
   $("#bar").style.width = `${(i+1)/ids.length*100}%`;
@@ -362,10 +366,13 @@ const STEP = {
       <div class="lbl">날짜 선택</div><input type="date" id="datepick" value="${esc(S.date)}">`;
   },
   writer(){
-    const names = master.workers.map(w => w.name);
-    return `<h2>작성자</h2><p class="hint">본인 이름을 선택하세요.</p><div class="grid">${names.map(n =>
-      `<button class="opt ${n===S.writer?"sel":""}" data-a="pick" data-f="writer" data-v="${esc(n)}">${esc(n)}</button>`).join("")}</div>
-      <div class="lbl">목록에 없으면 직접 추가</div><input type="text" id="addwriter" placeholder="이름 입력 후 Enter">`;
+    const g = curGroup();
+    const groups = ["자사"].concat(master.vendors.map(v => v.name));
+    const names = master.workers.filter(w => g === "자사" ? w.affil !== "외주" : (w.affil === "외주" && w.vendor === g)).map(w => w.name);
+    return `<h2>작성자</h2><p class="hint">소속을 고르고 본인 이름을 선택하세요.</p>
+      <div class="chips">${groups.map(x => `<button class="chip ${x===g?"sel":""}" data-a="wgroup" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+      <div class="grid">${names.map(n => `<button class="opt ${n===S.writer&&S.affil===(g==="자사"?"자사":"외주")&&(g==="자사"||S.vendor===g)?"sel":""}" data-a="writer" data-v="${esc(n)}">${esc(n)}</button>`).join("") || `<p class="hint">등록된 작업자가 없습니다.</p>`}</div>
+      <div class="lbl">목록에 없으면 직접 추가 (${esc(g)})</div><input type="text" id="addwriter" placeholder="이름 입력 후 Enter">`;
   },
   affil(){
     return `<h2>소속</h2><p class="hint">&nbsp;</p><div class="grid">${["자사","외주"].map(v =>
@@ -376,11 +383,14 @@ const STEP = {
       <div class="lbl">목록에 없으면 직접 추가</div><input type="text" id="addvendor" placeholder="업체명 입력 후 Enter">`;
   },
   workers(){
-    const list = master.workers.filter(w => w.affil === "외주" && w.vendor === S.vendor).map(w => w.name);
-    S.workers.forEach(n => { if(!list.includes(n)) list.push(n); });
-    return `<h2>외주 작업자</h2><p class="hint">${esc(S.vendor)} · 작업한 사람을 모두 선택하세요.</p>
-      <div class="chips">${list.map(n => `<button class="chip ${S.workers.includes(n)?"sel":""}" data-a="toggle" data-f="workers" data-v="${esc(n)}">${esc(n)}</button>`).join("")}</div>
-      <div class="lbl">직접 추가</div><input type="text" id="addworker" placeholder="이름 입력 후 Enter">`;
+    const g = coGroup();
+    const groups = ["자사"].concat(master.vendors.map(v => v.name));
+    const list = master.workers.filter(w => inGroup(w, g)).map(wlabel);
+    return `<h2>함께 작업한 사람</h2><p class="hint">작업에 참여한 사람을 모두 선택하세요. (직영·외주 모두 가능, 본인 포함)</p>
+      <div class="chips">${groups.map(x => `<button class="chip ${x===g?"sel":""}" data-a="cogroup" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+      <div class="chips">${list.map(n => `<button class="chip ${S.workers.includes(n)?"sel":""}" data-a="toggle" data-f="workers" data-v="${esc(n)}">${esc(n)}</button>`).join("") || `<span class="hint">등록된 작업자가 없습니다.</span>`}</div>
+      <div class="total" style="font-size:16px">선택 ${S.workers.length}명: ${esc(S.workers.join(", ")) || "-"}</div>
+      <div class="lbl">목록에 없으면 직접 추가 (${esc(g)})</div><input type="text" id="addworker" placeholder="이름 입력 후 Enter">`;
   },
   project(){
     const rec = LS.get("wl_recent", []);
@@ -430,8 +440,8 @@ const STEP = {
   confirm(){
     const row = (k, label, v) => `<div data-a="goto" data-v="${k}"><span>${label}</span><em>${esc(v) || "-"}</em></div>`;
     return `<h2>확인</h2><p class="hint">항목을 누르면 해당 단계로 이동해 수정합니다.</p><div class="sum">
-      ${row("date","작성일",S.date)}${row("writer","작성자",S.writer)}${row("affil","소속",S.affil)}
-      ${S.affil==="외주" ? row("vendor","외주업체",S.vendor) + row("workers","외주작업자",S.workers.join(", ")) : ""}
+      ${row("date","작성일",S.date)}${row("writer","작성자",`${S.writer} (${S.affil==="외주" ? S.vendor : "자사"})`)}
+      ${row("workers","함께 작업",S.workers.join(", "))}
       ${row("project","프로젝트",projLabel())}${row("type","작업구분",S.type)}${row("items","작업항목",S.items.join(", "))}
       ${row("time","작업시간",`${S.start} ~ ${S.end} (${hoursTxt()})`)}${row("status","진행상태",S.status)}
       ${row("detail","세부작업",S.detail)}${row("notes","특이사항",S.notes)}${row("photos","사진",S.photos.length ? S.photos.length+"장" : "")}</div>
@@ -510,7 +520,7 @@ function renderDone(){
    ===================================================================== */
 function buildPayload(){
   return { pin:getPin(), clientId:S.clientId, date:S.date, writer:S.writer, affil:S.affil,
-    vendor:S.affil==="외주" ? S.vendor : "", workers:S.affil==="외주" ? S.workers : [],
+    vendor:S.affil==="외주" ? S.vendor : "", workers:S.workers,
     yard:S.yard, hull:S.hull, equip:S.equip, type:S.type, items:S.items, start:S.start, end:S.end,
     hours:hoursNum(), status:S.status, detail:S.detail.trim(), notes:S.notes.trim(), photos:S.photos };
 }
@@ -583,6 +593,22 @@ function resizeImage(file){
    이벤트
    ===================================================================== */
 const AUTO = ["date","writer","affil","vendor","type","status"];
+/* 함께 작업한 사람: 자사는 "이름", 외주는 "이름(업체)" 형태로 저장 */
+let cg = "";   // 함께 작업 화면에서 보고 있는 그룹
+const coGroup = () => cg || (S.affil === "외주" && S.vendor ? S.vendor : "자사");
+function inGroup(w, g){ return g === "자사" ? w.affil !== "외주" : (w.affil === "외주" && w.vendor === g); }
+function wlabel(w){ return w.affil === "외주" ? `${w.name}(${w.vendor})` : w.name; }
+let wg = "";   // 작성자 화면에서 보고 있는 소속 그룹(자사 / 업체명)
+const curGroup = () => wg || (S.affil === "외주" && S.vendor ? S.vendor : "자사");
+function chooseWriter(name){
+  const g = curGroup();
+  S.writer = name;
+  if(g === "자사"){ S.affil = "자사"; S.vendor = ""; }
+  else { S.affil = "외주"; S.vendor = g; }
+  S.workers = [S.affil === "외주" ? `${name}(${g})` : name];
+  cg = "";
+  saveDraft(); render(); loadMyLogs(); setTimeout(advance, 160);
+}
 function pick(f, v){
   if(f === "type" && S.type !== v) S.items = [];
   if(f === "affil" && v === "자사"){ S.vendor = ""; S.workers = []; }
@@ -598,6 +624,9 @@ document.addEventListener("click", async e => {
     case "view":
       view = v === "mylogs" ? "mylogs" : "wizard"; if(view === "mylogs"){ renderLogs(); loadMyLogs(); } else render(); break;
     case "pick": pick(f, v); break;
+    case "wgroup": wg = v; render(); break;
+    case "cogroup": cg = v; render(); break;
+    case "writer": chooseWriter(v); break;
     case "toggle": { if(lpFired){ lpFired = false; break; } const arr = S[f], i = arr.indexOf(v); i < 0 ? arr.push(v) : arr.splice(i,1); saveDraft(); render(); break; }
     case "phrase": { S[f] = (S[f] ? S[f].trim() + "\n" : "") + v; saveDraft(); const ta = $("#"+f); if(ta) ta.value = S[f]; break; }
     case "next": advance(); break;
@@ -683,9 +712,17 @@ document.addEventListener("keydown", e => {
   const id = e.target.id, val = (e.target.value || "").trim();
   if(id === "pin"){ document.querySelector("[data-a=pinok]").click(); return; }
   if(!val) return;
-  if(id === "addwriter"){ if(!master.workers.some(w => w.name === val)) master.workers.push({ name:val, affil:"", vendor:"" }); pick("writer", val); }
+  if(id === "addwriter"){
+    const g = curGroup();
+    if(!master.workers.some(w => w.name === val && (g === "자사" ? w.affil !== "외주" : w.vendor === g)))
+      master.workers.push({ name:val, affil:g === "자사" ? "자사" : "외주", vendor:g === "자사" ? "" : g });
+    chooseWriter(val);
+  }
   else if(id === "addvendor"){ if(!master.vendors.some(v => v.name === val)) master.vendors.push({ name:val, phone:"" }); pick("vendor", val); }
-  else if(id === "addworker"){ if(!S.workers.includes(val)) S.workers.push(val); saveDraft(); render(); }
+  else if(id === "addworker"){
+    const g = coGroup(), lab = g === "자사" ? val : `${val}(${g})`;
+    if(!master.workers.some(w => w.name === val && inGroup(w, g))) master.workers.push({ name:val, affil:g === "자사" ? "자사" : "외주", vendor:g === "자사" ? "" : g });
+    if(!S.workers.includes(lab)) S.workers.push(lab); saveDraft(); render(); }
   else if(id === "additem"){ addMasterItem(val); }
 });
 window.addEventListener("online", () => { flushOps(); flushQueue(); });
