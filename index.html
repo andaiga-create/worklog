@@ -307,7 +307,9 @@ const projLabel = () => `${S.yard}-${S.hull}-${S.equip}`;
 /* =====================================================================
    이동
    ===================================================================== */
-function go(id){ S.step = id; saveDraft(); render(); $("#main").scrollTop = 0; }
+let lastKey = "", lastAt = 0, navAt = 0;
+const NAV_LOCK = ["pick","writer","toggle","preset","proj","phrase","next","back","goto","recent","resume","prefill","wgroup","cogroup"];
+function go(id){ navAt = Date.now(); S.step = id; saveDraft(); render(); $("#main").scrollTop = 0; }
 function advance(){
   const ids = stepIds(), i = ids.indexOf(S.step);
   if(editing){
@@ -475,7 +477,8 @@ function renderProjectLists(){
       <select id="yfsel">${opt("", "조선소", yf)}${yards.map(y => opt(y, y, yf)).join("")}</select>
       <select id="hfsel">${opt("", "호선", hf)}${hulls.map(h => opt(h, h.split("|")[1], hf)).join("")}</select>
       <select id="efsel">${opt("", "장비", ef)}${byH.map(p => opt(key(p), p.name, ef)).join("")}</select></div>
-    ${list.map(p => `<button class="opt ${p.yard===S.yard&&p.hull===S.hull&&p.name===S.equip?"sel":""}" data-a="proj" data-i="${all.indexOf(p)}">${esc(p.yard)}-${esc(p.hull)}-${esc(p.name)}
+    ${!q.trim() ? `<p class="hint">검색어를 입력하면 프로젝트가 표시됩니다.</p>` :
+      list.map(p => `<button class="opt ${p.yard===S.yard&&p.hull===S.hull&&p.name===S.equip?"sel":""}" data-a="proj" data-i="${all.indexOf(p)}">${esc(p.yard)}-${esc(p.hull)}-${esc(p.name)}
       <small>${esc(p.owner)}${p.serial ? " · " + esc(p.serial) : ""}</small></button>`).join("") || `<p class="hint">해당하는 프로젝트가 없습니다.</p>`}
     ${last ? `<div class="card"><div class="t">직전 일지 불러오기</div><div class="s">${esc(last.date)} · ${esc(last.type)} · ${esc(last.status)}</div>
       <button class="btn" style="width:100%" data-a="prefill">작업구분·항목·시간·상태 미리 채우기</button></div>` : ""}`;
@@ -619,19 +622,27 @@ function chooseWriter(name){
   else { S.affil = "외주"; S.vendor = g; }
   S.workers = [S.affil === "외주" ? `${name}(${g})` : name];
   cg = "";
-  saveDraft(); render(); loadMyLogs(); setTimeout(advance, 160);
+  saveDraft(); render(); loadMyLogs(); autoAdvance();
 }
+function autoAdvance(){ const st = S.step; setTimeout(() => { if(S.step === st && view === "wizard") advance(); }, 160); }
 function pick(f, v){
   if(f === "type" && S.type !== v) S.items = [];
   if(f === "affil" && v === "자사"){ S.vendor = ""; S.workers = []; }
   if(f === "vendor" && S.vendor !== v) S.workers = [];
   S[f] = v; saveDraft(); render();
   if(f === "writer") loadMyLogs();
-  if(AUTO.includes(f)) setTimeout(advance, 160);
+  if(AUTO.includes(f)) autoAdvance();
 }
 document.addEventListener("click", async e => {
   const t = e.target.closest("[data-a]"); if(!t) return;
   const a = t.dataset.a, v = t.dataset.v, f = t.dataset.f;
+  // 중복 터치 방지: 같은 버튼 연타, 화면 전환 직후 겹친 터치는 무시 (+/- 시간 조절은 연속 입력 허용)
+  if(a !== "tm"){
+    const now = Date.now(), key = [a, f, v, t.dataset.i].join("|");
+    if(key === lastKey && now - lastAt < 400) return;
+    if(NAV_LOCK.includes(a) && now - navAt < 400) return;
+    lastKey = key; lastAt = now;
+  }
   switch(a){
     case "view":
       view = v === "mylogs" ? "mylogs" : "wizard"; if(view === "mylogs"){ renderLogs(); loadMyLogs(); } else render(); break;
