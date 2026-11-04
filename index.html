@@ -394,10 +394,9 @@ const STEP = {
   },
   project(){
     const rec = LS.get("wl_recent", []);
-    return `<h2>프로젝트</h2><p class="hint">진행 중인 프로젝트를 선택하세요. 호선·장비·시리얼로 검색할 수 있습니다.</p>
+    return `<h2>프로젝트</h2><p class="hint">진행 중인 프로젝트를 선택하세요. 위 필터로 목록을 좁힐 수 있습니다.</p>
       ${rec.length ? `<div class="lbl">최근 프로젝트</div><div class="chips">${rec.map((r,i) =>
         `<button class="chip" data-a="recent" data-v="${i}">${esc(r.yard)}-${esc(r.hull)}-${esc(r.equip)}</button>`).join("")}</div>` : ""}
-      <input type="text" id="q" placeholder="검색 (호선, 장비, 시리얼, 선주)" value="${esc(q)}">
       <div id="plist"></div>`;
   },
   type(){ return `<h2>작업 구분</h2><p class="hint">&nbsp;</p><div class="grid">${CONFIG.WORK_TYPES.map(v =>
@@ -450,21 +449,22 @@ const STEP = {
 };
 
 /* ---------- 프로젝트 선택 ---------- */
-let yf = "";   // 조선소 필터(선택값 아님)
-function projMatches(p, term){
-  if(!term) return true;
-  return [p.yard, p.yardName, p.hull, p.owner, p.name, p.code, p.serial].join(" ").toLowerCase().includes(term.toLowerCase());
-}
+let yf = "", hf = "";   // 조선소 / 호선 필터(선택값 아님). hf = "조선소|호선"
 function renderProjectLists(){
   const el = $("#plist"); if(!el) return;
-  const yards = [...new Set(master.projects.map(p => p.yard))];
+  const all = master.projects;
+  const yards = [...new Set(all.map(p => p.yard))];
   if(yf && !yards.includes(yf)) yf = "";
-  const list = master.projects.filter(p => (!yf || p.yard === yf) && projMatches(p, q));
+  const hulls = [...new Set(all.filter(p => !yf || p.yard === yf).map(p => p.yard + "|" + p.hull))];
+  if(hf && !hulls.includes(hf)) hf = "";
+  const list = all.filter(p => (!yf || p.yard === yf) && (!hf || p.yard + "|" + p.hull === hf));
   const last = S.equip ? findLastLog() : null;
-  el.innerHTML = `${yards.length > 1 ? `<div class="chips">${yards.map(y =>
-      `<button class="chip ${y===yf?"sel":""}" data-a="yard" data-v="${esc(y)}">${esc(y)}</button>`).join("")}</div>` : ""}
-    ${list.map((p,i) => `<button class="opt ${p.yard===S.yard&&p.hull===S.hull&&p.name===S.equip?"sel":""}" data-a="proj" data-i="${master.projects.indexOf(p)}">${esc(p.yard)}-${esc(p.hull)}-${esc(p.name)}
-      <small>${esc(p.yardName || p.yard)} · ${esc(p.owner)}${p.serial ? " · " + esc(p.serial) : ""}</small></button>`).join("") || `<p class="hint">해당하는 프로젝트가 없습니다.</p>`}
+  const opt = (v, label, cur) => `<option value="${esc(v)}" ${v===cur?"selected":""}>${esc(label)}</option>`;
+  el.innerHTML = `<div class="grid" style="margin-bottom:12px">
+      <select id="yfsel" style="margin:0">${opt("", "조선소 전체", yf)}${yards.map(y => opt(y, y, yf)).join("")}</select>
+      <select id="hfsel" style="margin:0">${opt("", "호선 전체", hf)}${hulls.map(h => opt(h, h.replace("|","-"), hf)).join("")}</select></div>
+    ${list.map(p => `<button class="opt ${p.yard===S.yard&&p.hull===S.hull&&p.name===S.equip?"sel":""}" data-a="proj" data-i="${all.indexOf(p)}">${esc(p.yard)}-${esc(p.hull)}-${esc(p.name)}
+      <small>${esc(p.owner)}${p.serial ? " · " + esc(p.serial) : ""}</small></button>`).join("") || `<p class="hint">해당하는 프로젝트가 없습니다.</p>`}
     ${last ? `<div class="card"><div class="t">직전 일지 불러오기</div><div class="s">${esc(last.date)} · ${esc(last.type)} · ${esc(last.status)}</div>
       <button class="btn" style="width:100%" data-a="prefill">작업구분·항목·시간·상태 미리 채우기</button></div>` : ""}`;
 }
@@ -698,6 +698,8 @@ document.addEventListener("input", e => {
 document.addEventListener("change", async e => {
   const id = e.target.id;
   if(id === "datepick" && e.target.value){ pick("date", e.target.value); }
+  if(id === "yfsel"){ yf = e.target.value; hf = ""; renderProjectLists(); }
+  if(id === "hfsel"){ hf = e.target.value; if(hf) yf = hf.split("|")[0]; renderProjectLists(); }
   if(id === "logfilter"){ logFilter = e.target.value; renderLogs(); }
   if(id === "photoin"){
     for(const file of [...e.target.files]){
