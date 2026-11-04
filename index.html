@@ -491,7 +491,7 @@ function renderProjectLists(){
       <select id="efsel">${opt("", "장비", ef)}${byH.map(p => opt(key(p), p.name, ef)).join("")}</select></div>
     ${!q.trim() ? `<p class="hint">검색어를 입력하면 프로젝트가 표시됩니다.</p>` :
       list.map(p => `<button class="opt ${p.yard===S.yard&&p.hull===S.hull&&p.name===S.equip?"sel":""}" data-a="proj" data-i="${all.indexOf(p)}">${esc(p.yard)}-${esc(p.hull)}-${esc(p.name)}
-      <small>${esc(p.owner)}${p.serial ? " · " + esc(p.serial) : ""}</small></button>`).join("") || `<p class="hint">해당하는 프로젝트가 없습니다.</p>`}
+      ${p.owner || p.serial ? `<small>${esc(p.owner)}${p.serial ? " · " + esc(p.serial) : ""}</small>` : ""}</button>`).join("") || `<p class="hint">해당하는 프로젝트가 없습니다.</p>`}
     ${last ? `<div class="card"><div class="t">직전 일지 불러오기</div><div class="s">${esc(last.date)} · ${esc(last.type)} · ${esc(last.status)}</div>
       <button class="btn" style="width:100%" data-a="prefill">작업구분·항목·시간·상태 미리 채우기</button></div>` : ""}`;
 }
