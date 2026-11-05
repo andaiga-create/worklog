@@ -95,24 +95,9 @@ const CONFIG = {
   // Apps Script 웹앱 URL (…/exec). 비워두면 샘플 데이터로 동작하는 데모 모드
   API_URL: "https://script.google.com/macros/s/AKfycbxxsimDu3Thz44EDoW8Md_9NXsJTf27x8JHMYNPve0xHAXqjDTyK_1n41udrD1_HWvq/exec",
 
-  WORK_TYPES: ["기계조립","윈치조립","대조립","설치","시운전","해체","포장","입고","이동","출고","기타"],
+  // 작업구분·작업항목은 구글시트 '작업항목' 탭(A열=작업구분, B열=항목명)에서만 읽어온다. 아이콘은 이름이 같을 때만 붙고, 없으면 기본 아이콘
   TYPE_ICON: { "기계조립":["⚙️","#8E8E93"],"윈치조립":["⛓️","#5AC8FA"],"대조립":["🏗️","#FF9500"],"설치":["🔩","#34C759"],"시운전":["▶️","#007AFF"],
-               "해체":["🔧","#FF3B30"],"포장":["📦","#AF52DE"],"입고":["📥","#30B0C7"],"이동":["🚚","#FFCC00"],"출고":["📤","#FF6482"],"기타":["📝","#8E8E93"] },
-
-  // 마스터 '작업항목' 탭에 해당 작업구분 항목이 있으면 그쪽이 우선 사용됨
-  CHECKLISTS: {
-    "기계조립": ["베이스 프레임 정렬","붕/지브 결합","실린더 설치","핀·부싱 조립","배관 가조립","볼트 체결/토크","도장 보수"],
-    "윈치조립": ["드럼 조립","감속기 설치","브레이크 조립","모터 장착","와이어 감기","커버 설치","그리스 주입"],
-    "대조립": ["블록 위치 정렬","메인 구조 결합","용접 확인","수평 측정","배관 연결","케이블 트레이 설치","도장 보수"],
-    "설치": ["위치 마킹","본체 탑재","앵커/볼트 체결","유압 배관 연결","전장 배선","접지 연결","수평 확인"],
-    "시운전": ["유압유 주입","전장 연결","와이어 리깅","리미트 세팅","로드 테스트","유압유 드레인","누유 점검","작동 점검"],
-    "해체": ["전원 차단","유압유 드레인","배관 분리","케이블 분리","와이어 철거","본체 분리","부품 분류/보관"],
-    "포장": ["방청 처리","부품 포장","목박스 제작","고박 작업","라벨 부착","포장 사진 촬영"],
-    "입고": ["입고 검수","수량 확인","파손 확인","적치","입고 서류 확인","라벨 부착"],
-    "이동": ["지게차 이동","크레인 이동","트레일러 상차","경로 확인","적치 위치 정리"],
-    "출고": ["출고 검수","상차","고박","출고 서류 작성","선적 사진 촬영","운송사 인계"],
-    "기타": ["청소/정리","자재 정리","장비 점검","교육/회의","대기"]
-  },
+               "해체":["🔧","#FF3B30"],"포장":["📦","#AF52DE"],"입고":["📥","#30B0C7"],"이동":["🚚","#FFCC00"],"출고":["📤","#FF6482"],"기타":["📝","#8E8E93"],"설치/해체":["🛠️","#FF9500"] },
 
   STATUSES: ["완료","진행중","보류-부품대기","보류-선주확인"],
 
@@ -133,7 +118,7 @@ const DEMO_MASTER = {
   workers:[{name:"김직영",affil:"직영",vendor:""},{name:"이직영",affil:"직영",vendor:""},
            {name:"박외주",affil:"외주",vendor:"대한용접"},{name:"정외주",affil:"외주",vendor:"성진기계"}],
   vendors:[{name:"대한용접"},{name:"성진기계"}],
-  items:[]
+  items:[{type:"시운전",name:"유압유 주입"},{type:"시운전",name:"로드 테스트"},{type:"설치/해체",name:"탑재"},{type:"설치/해체",name:"해체"},{type:"포장",name:"도장수정"}]
 };
 
 /* =====================================================================
@@ -216,22 +201,21 @@ async function loadMyLogs(){
 let opsFlushing = false;
 const getOps = () => LS.get("wl_ops", []);
 const saveMaster = () => LS.set("wl_master", master);
-function applyOp(m, o){
+function applyOp(m, o){   // 서버(Code.gs applyItemOps_)와 같은 규칙: 한 구분의 마지막 항목을 지우면 항목명만 비우고 구분은 남긴다
   m.items = m.items || [];
+  const same = m.items.filter(x => x.type === o.type);
   const i = m.items.findIndex(x => x.type === o.type && x.name === o.name);
-  if(o.op === "add"){ if(i < 0) m.items.push({ type:o.type, name:o.name }); }
-  else if(o.op === "del"){ if(i >= 0) m.items.splice(i,1); }
+  if(o.op === "add"){ if(i < 0){ const b = m.items.find(x => x.type === o.type && !x.name); if(b) b.name = o.name; else m.items.push({ type:o.type, name:o.name }); } }
+  else if(o.op === "del"){ if(i >= 0){ if(same.length <= 1) m.items[i].name = ""; else m.items.splice(i,1); } }
   else if(o.op === "rename" && i >= 0){
     if(m.items.some(x => x.type === o.type && x.name === o.newName)) m.items.splice(i,1); else m.items[i].name = o.newName;
   }
 }
+const workTypes = () => [...new Set(master.items.map(i => i.type).filter(Boolean))];
 function itemOp(o){ applyOp(master, o); saveMaster(); const ops = getOps(); ops.push(o); LS.set("wl_ops", ops); flushOps(); }
-function ensureSeeded(type){   // 시트에 항목이 없던 작업구분은 기본 항목을 시트로 옮겨 수정/삭제 가능하게 함
-  if(!master.items.some(i => i.type === type)) (CONFIG.CHECKLISTS[type] || []).forEach(n => itemOp({ op:"add", type, name:n }));
-}
 function addMasterItem(name){
   name = (name || "").trim(); if(!name) return;
-  ensureSeeded(S.type); itemOp({ op:"add", type:S.type, name });
+  itemOp({ op:"add", type:S.type, name });
   if(!S.items.includes(name)) S.items.push(name);
   saveDraft(); render();
 }
@@ -402,14 +386,13 @@ const STEP = {
       <div id="plist"></div>`;
   },
   type(){
-    return `<h1>무슨 작업인가요?</h1><p class="sub">하나만 고르세요.</p><div class="tiles">${CONFIG.WORK_TYPES.map(v => {
+    return `<h1>무슨 작업인가요?</h1><p class="sub">하나만 고르세요.</p>${workTypes().length ? "" : `<p class="sub">시트 '작업항목' 탭 A열에 작업구분을 입력하세요.</p>`}<div class="tiles">${workTypes().map(v => {
       const ic = CONFIG.TYPE_ICON[v] || ["📝","#8E8E93"];
       return `<button class="tl ${v===S.type?"sel":""}" data-a="pick" data-f="type" data-v="${esc(v)}"><span class="sq" style="background:${ic[1]}33">${ic[0]}</span>${esc(v)}</button>`;
     }).join("")}</div>`;
   },
   items(){
-    const fromMaster = master.items.filter(i => i.type === S.type).map(i => i.name);
-    const list = (fromMaster.length ? fromMaster : (CONFIG.CHECKLISTS[S.type] || [])).slice();
+    const list = master.items.filter(i => i.type === S.type && i.name).map(i => i.name);
     S.items.forEach(n => { if(!list.includes(n)) list.push(n); });
     return `<h1>어떤 항목을 했나요?</h1><p class="sub">${esc(S.type)} · 해당하는 것을 모두 누르세요.</p>
       <div class="grp">${list.map(n => manage
@@ -660,11 +643,11 @@ document.addEventListener("click", async e => {
     case "additembtn": addMasterItem($("#additem").value); break;
     case "itemedit": {
       const nn = (prompt("항목 이름 수정", v) || "").trim(); if(!nn || nn === v) break;
-      ensureSeeded(S.type); itemOp({ op:"rename", type:S.type, name:v, newName:nn });
+      itemOp({ op:"rename", type:S.type, name:v, newName:nn });
       S.items = S.items.map(x => x === v ? nn : x).filter((x,i,arr) => arr.indexOf(x) === i); saveDraft(); render(); break; }
     case "itemdel":
       if(!confirm(`"${v}" 항목을 삭제할까요?\n(모든 작업자의 목록에서 사라집니다)`)) break;
-      ensureSeeded(S.type); itemOp({ op:"del", type:S.type, name:v }); S.items = S.items.filter(x => x !== v); saveDraft(); render(); break;
+      itemOp({ op:"del", type:S.type, name:v }); S.items = S.items.filter(x => x !== v); saveDraft(); render(); break;
     case "delphoto": S.photos.splice(v,1); render(); break;
     case "editdate": editDate = !editDate; render(); break;
     case "next": advance(); break;

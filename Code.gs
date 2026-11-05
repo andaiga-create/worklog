@@ -123,11 +123,21 @@ function applyItemOps_(ops) {
   ops.forEach(function (o) {
     var last = sh.getLastRow();
     var vals = last > 1 ? sh.getRange(2, 1, last - 1, 2).getDisplayValues() : [];
-    var hits = [];
-    for (var i = 0; i < vals.length; i++) if (vals[i][0] === o.type && vals[i][1] === o.name) hits.push(i + 2);
-    if (o.op === "add" && !hits.length) sh.appendRow([o.type, o.name]);
-    else if (o.op === "del") for (var k = hits.length - 1; k >= 0; k--) sh.deleteRow(hits[k]);
-    else if (o.op === "rename" && hits.length) sh.getRange(hits[0], 2).setValue(o.newName);
+    var hits = [], blank = -1, same = 0;
+    for (var i = 0; i < vals.length; i++) {
+      if (vals[i][0] !== o.type) continue;
+      same++;
+      if (!vals[i][1]) blank = i + 2;
+      if (vals[i][1] === o.name) hits.push(i + 2);
+    }
+    if (o.op === "add" && !hits.length) {
+      if (blank > 0) sh.getRange(blank, 2).setValue(o.name); else sh.appendRow([o.type, o.name]);
+    } else if (o.op === "del") {
+      // 한 구분의 마지막 항목이면 행을 지우지 않고 항목명만 비워 작업구분이 목록에서 사라지지 않게 한다
+      for (var k = hits.length - 1; k >= 0; k--) {
+        if (same <= 1) sh.getRange(hits[k], 2).setValue(""); else { sh.deleteRow(hits[k]); same--; }
+      }
+    } else if (o.op === "rename" && hits.length) sh.getRange(hits[0], 2).setValue(o.newName);
   });
 }
 
