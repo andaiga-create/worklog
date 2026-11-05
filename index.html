@@ -408,14 +408,14 @@ const STEP = {
     const r = range(), c = conflictWith(r);
     const slots = P().map((p,i) => {
       const u = used(i);
-      if(u) return `<div class="it lock"><span class="sq" style="background:var(--line)">🔒</span><span class="tx">${p.join("~")}<small>${esc(u.type || "")}로 이미 작성됨</small></span><span class="pill">작성됨</span></div>`;
+      if(u) return `<div class="it lock"><span class="sq" style="background:var(--line)">🔒</span><span class="tx">${p.join("~")}<small>${u.type ? esc(u.type) + " 일지 작성됨" : "이미 일지가 있어요"}</small></span><span class="pill">작성됨</span></div>`;
       const on = S.slots.includes(i);
       return `<button class="it ${on?"sel":""}" data-a="preset" data-v="${i}"><span class="sq" style="background:#FF950033">🕒</span><span class="tx">${p.join("~")}</span>${(i===rec&&!S.slots.length&&!S.direct)?`<span class="pill rc">추천</span>`:`<span class="ck"></span>`}</button>`;
     }).join("");
     const direct = S.direct ? `<div class="box glass" style="padding:14px"><div style="display:flex;gap:10px"><div style="flex:1"><div class="l" style="font-size:15px;color:var(--sub)">시작</div><input type="time" id="tstart" step="300" value="${esc(S.start)}" style="margin:4px 0 0"></div>
         <div style="flex:1"><div class="l" style="font-size:15px;color:var(--sub)">종료</div><input type="time" id="tend" step="300" value="${esc(S.end)}" style="margin:4px 0 0"></div></div></div>` : "";
     let err = "";
-    if(c) err = `<div class="warn"><b>${esc(r[0])} ~ ${esc(r[1])}</b>은 쓸 수 없어요.<br>${esc(c.start)}~${esc(c.end)}에 이미 일지가 있어요. 시간을 고쳐 주세요.</div>`;
+    if(c) err = `<div class="warn">선택한 시간(<b>${esc(r[0])} ~ ${esc(r[1])}</b>)은 쓸 수 없어요.<br>${esc(c.start)}~${esc(c.end)}에 이미 일지가 있어요. 시간을 고쳐 주세요.</div>`;
     else if(S.direct && S.start && S.end && toMin(S.end) <= toMin(S.start)) err = `<div class="warn">종료 시간이 시작 시간보다 늦어야 해요.</div>`;
     return `<h1>몇 시에 작업했나요?</h1><p class="sub">이어진 시간대는 함께 고를 수 있어요.</p>
       <div class="note">오늘(${esc(S.date)}) 이미 쓴 시간은 겹치게 쓸 수 없어요.</div>
