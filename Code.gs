@@ -17,7 +17,7 @@ var MASTER_TABS = {
   // 진행 중인 [조선소-호선-장비] 한 줄이 프로젝트 하나
   // 진행 중인 프로젝트 한 줄 = "조선소-호선-장비" (예: HHI-8123-크레인). 앱이 앞에서 두 번째 '-'까지만 나눠 인식한다
   projects:{ tab: "프로젝트", cols: { label: "프로젝트" } },
-  staff:   { tab: "작업자",   cols: { name: "이름" } },                          // 자사 작업자
+  staff:   { tab: "작업자",   cols: { name: "이름" } },                          // 직영 작업자
   vendorRows: { tab: "외주업체", cols: { vendor: "업체명", name: "작업자명" } },  // 업체명 - 작업자명 (한 줄에 한 명)
   items:   { tab: "작업항목", cols: { type: "작업구분", name: "항목명" } }
 };
@@ -99,11 +99,11 @@ function getMaster_() {
     var k = p.yard + "|" + p.hull + "|" + p.name;
     if (seen[k]) return false; seen[k] = true; return true;
   });
-  // 앱이 쓰는 형태로 변환: workers(자사+외주 전원), vendors(업체 목록)
+  // 앱이 쓰는 형태로 변환: workers(직영+외주 전원), vendors(업체 목록)
   var vendorNames = [];
   out.vendorRows.forEach(function (r) { if (r.vendor && vendorNames.indexOf(r.vendor) < 0) vendorNames.push(r.vendor); });
   out.workers = out.staff.filter(function (s) { return s.name; })
-    .map(function (s) { return { name: s.name, affil: "자사", vendor: "" }; })
+    .map(function (s) { return { name: s.name, affil: "직영", vendor: "" }; })
     .concat(out.vendorRows.filter(function (r) { return r.name; })
       .map(function (r) { return { name: r.name, affil: "외주", vendor: r.vendor }; }));
   out.vendors = vendorNames.map(function (n) { return { name: n }; });

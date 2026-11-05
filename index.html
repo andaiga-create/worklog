@@ -130,7 +130,7 @@ const DEMO_MASTER = {
     {yard:"HHI",yardName:"HHI",hull:"8123",owner:"",name:"윈치",code:"",serial:""},
     {yard:"HHI",yardName:"HHI",hull:"8124",owner:"",name:"크레인",code:"",serial:""},
     {yard:"SHI",yardName:"SHI",hull:"2201",owner:"",name:"크레인",code:"",serial:""}],
-  workers:[{name:"김자사",affil:"자사",vendor:""},{name:"이자사",affil:"자사",vendor:""},
+  workers:[{name:"김직영",affil:"직영",vendor:""},{name:"이직영",affil:"직영",vendor:""},
            {name:"박외주",affil:"외주",vendor:"대한용접"},{name:"정외주",affil:"외주",vendor:"성진기계"}],
   vendors:[{name:"대한용접"},{name:"성진기계"}],
   items:[]
@@ -357,9 +357,9 @@ function renderPin(){
 }
 
 function renderSetup(){
-  const groups = ["자사"].concat(master.vendors.map(v => v.name));
-  const g = sg || (who && who.affil === "외주" ? who.vendor : "자사");
-  const names = master.workers.filter(w => g === "자사" ? w.affil !== "외주" : (w.affil === "외주" && w.vendor === g));
+  const groups = ["직영"].concat(master.vendors.map(v => v.name));
+  const g = sg || (who && who.affil === "외주" ? who.vendor : "직영");
+  const names = master.workers.filter(w => g === "직영" ? w.affil !== "외주" : (w.affil === "외주" && w.vendor === g));
   show(`<div class="nav">${who ? `<button class="back" data-a="home">‹ 홈</button>` : `<span class="sp"></span>`}<span></span><span class="sp"></span></div>
     <h1>누구신가요?</h1><p class="sub">소속을 고르고 이름을 누르세요. 한 번만 하면 기억해요.</p>
     <div class="chips">${groups.map(x => `<button class="chip ${x===g?"sel":""}" data-a="sgroup" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>
@@ -625,8 +625,8 @@ function resizeImage(file){
    이벤트
    ===================================================================== */
 function setWho(name, g){
-  const w = master.workers.find(x => x.name === name && (g === "자사" ? w0(x) : (x.affil === "외주" && x.vendor === g)));
-  who = { name, affil: g === "자사" ? "자사" : "외주", vendor: g === "자사" ? "" : g };
+  const w = master.workers.find(x => x.name === name && (g === "직영" ? w0(x) : (x.affil === "외주" && x.vendor === g)));
+  who = { name, affil: g === "직영" ? "직영" : "외주", vendor: g === "직영" ? "" : g };
   LS.set("wl_who", who); sg = ""; view = "home"; render(); loadMyLogs();
 }
 const w0 = x => x.affil !== "외주";
@@ -705,9 +705,9 @@ document.addEventListener("keydown", e => {
   if(id === "pin"){ const b = document.querySelector("[data-a=pinok]"); if(b) b.click(); return; }
   if(!val) return;
   if(id === "addwho"){
-    const g = sg || (who && who.affil === "외주" ? who.vendor : "자사");
-    if(!master.workers.some(w => w.name === val && (g === "자사" ? w0(w) : w.vendor === g)))
-      master.workers.push({ name:val, affil:g === "자사" ? "자사" : "외주", vendor:g === "자사" ? "" : g });
+    const g = sg || (who && who.affil === "외주" ? who.vendor : "직영");
+    if(!master.workers.some(w => w.name === val && (g === "직영" ? w0(w) : w.vendor === g)))
+      master.workers.push({ name:val, affil:g === "직영" ? "직영" : "외주", vendor:g === "직영" ? "" : g });
     setWho(val, g);
   }
   else if(id === "additem"){ addMasterItem(val); }
