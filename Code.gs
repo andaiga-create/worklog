@@ -23,7 +23,7 @@ var MASTER_TABS = {
 };
 
 // 작업일지 시트 헤더 (마지막 '클라이언트ID'는 중복 제출 방지용)
-var LOG_HEADERS = ["일지ID","제출시각","작성일","작성자","소속","외주업체","함께작업자",
+var LOG_HEADERS = ["일지ID","제출시각","작성일","작성자","소속","외주업체",
   "조선소","호선","장비명","작업구분","작업항목","시작","종료","작업시간",
   "진행상태","세부작업","특이사항","사진링크","클라이언트ID"];
 
@@ -139,6 +139,10 @@ function getLogSheet_() {
     sh = ss.insertSheet(SHEET_LOG);
     sh.getRange(1, 1, 1, LOG_HEADERS.length).setValues([LOG_HEADERS]).setFontWeight("bold");
     sh.setFrozenRows(1);
+  } else {
+    // 예전 시트(7열이 함께작업자/외주작업자)는 해당 열을 지워 새 구조에 맞춘다
+    var h7 = String(sh.getRange(1, 7).getValue());
+    if (h7 === "함께작업자" || h7 === "외주작업자") sh.deleteColumn(7);
   }
   return sh;
 }
@@ -159,6 +163,17 @@ function saveLog_(d) {
     }
   }
 
+  // 시간 겹침 방지: 같은 작성자, 같은 날짜의 기존 일지와 시간이 겹치면 거절
+  var all = last > 1 ? sh.getRange(2, 1, last - 1, LOG_HEADERS.length).getDisplayValues() : [];
+  var toMin = function (t) { var p = String(t).split(":"); return Number(p[0]) * 60 + Number(p[1]); };
+  for (var k = 0; k < all.length; k++) {
+    var r = all[k];
+    if (r[3] === d.writer && r[2] === d.date && /^\d\d:\d\d$/.test(r[11]) && /^\d\d:\d\d$/.test(r[12]) &&
+        toMin(d.start) < toMin(r[12]) && toMin(r[11]) < toMin(d.end)) {
+      return { error: "overlap", with: r[0] };
+    }
+  }
+
   // 일지ID: {조선소}-{호선}-{장비명}-{YYYYMMDD}-{작성자}-{순번}
   var prefix = [d.yard, d.hull, d.equip, String(d.date).replace(/-/g, ""), d.writer].join("-");
   var count = 0;
@@ -168,7 +183,7 @@ function saveLog_(d) {
   var links = savePhotos_(id, d.photos || []);
 
   var row = [id, Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss"), d.date, d.writer, d.affil,
-    d.vendor || "", (d.workers || []).join(", "), d.yard, d.hull, d.equip, d.type, (d.items || []).join(", "),
+    d.vendor || "", d.yard, d.hull, d.equip, d.type, (d.items || []).join(", "),
     d.start, d.end, d.hours, d.status, d.detail || "", d.notes || "", links.join("\n"), d.clientId || ""];
 
   var rng = sh.getRange(last + 1, 1, 1, LOG_HEADERS.length);
@@ -197,9 +212,9 @@ function savePhotos_(id, photos) {
 function rowToLog_(r) {
   var split = function (s) { return s ? String(s).split(/\s*,\s*/) : []; };
   return {
-    id: r[0], date: r[2], writer: r[3], affil: r[4], vendor: r[5], workers: split(r[6]),
-    yard: r[7], hull: String(r[8]), equip: r[9], type: r[10], items: split(r[11]),
-    start: r[12], end: r[13], hours: r[14], status: r[15], detail: r[16], notes: r[17]
+    id: r[0], date: r[2], writer: r[3], affil: r[4], vendor: r[5],
+    yard: r[6], hull: String(r[7]), equip: r[8], type: r[9], items: split(r[10]),
+    start: r[11], end: r[12], hours: r[13], status: r[14], detail: r[15], notes: r[16]
   };
 }
 
