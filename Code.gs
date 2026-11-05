@@ -10,7 +10,7 @@
 /* ===== 설정 ===== */
 var SHEET_LOG = "작업일지";
 var PHOTO_FOLDER_NAME = "작업일지_사진";
-var MY_LOG_LIMIT = 50;
+var MY_LOG_LIMIT = 100;
 
 // 마스터 탭: 시트 이름 -> { 응답 키: 헤더(1행) 이름 }
 var MASTER_TABS = {
@@ -224,7 +224,8 @@ function rowToLog_(r) {
   return {
     id: r[0], date: r[2], writer: r[3], affil: r[4], vendor: r[5],
     yard: r[6], hull: String(r[7]), equip: r[8], type: r[9], items: split(r[10]),
-    start: r[11], end: r[12], hours: r[13], status: r[14], detail: r[15], notes: r[16]
+    start: r[11], end: r[12], hours: r[13], status: r[14], detail: r[15], notes: r[16],
+    photos: r[17] ? String(r[17]).split("\n").filter(Boolean) : []
   };
 }
 
