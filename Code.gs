@@ -34,6 +34,7 @@ function doGet(e) {
   try {
     if (p.action === "master") return json_(getMaster_());
     if (p.action === "mylogs") return json_({ logs: getMyLogs_(p.writer) });
+    if (p.action === "export") return json_({ logs: readLogs_().filter(function (l) { return (!p.from || l.date >= p.from) && (!p.to || l.date <= p.to); }) });
     if (p.action === "last") return json_({ log: getLastLog_(p.yard, p.hull, p.equip) });
     return json_({ error: "unknown action" });
   } catch (err) {

@@ -49,7 +49,7 @@ h1{font-size:33px;font-weight:700;margin:4px 0 4px;line-height:1.18;letter-spaci
 .tl .sq{width:70px;height:70px;border-radius:20px;font-size:34px;border:3px solid transparent}
 .tl.sel .sq{border-color:var(--blue);box-shadow:0 0 0 3px var(--recBg)}
 .tl.sel::after{content:"✓";position:absolute;top:0;right:10px;width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;border:2px solid var(--card)}
-input[type=text],input[type=password],input[type=date],input[type=time],textarea{width:100%;min-height:58px;padding:10px 16px;border-radius:16px;border:1.5px solid var(--line);background:var(--card);color:var(--fg);font:inherit;font-size:19px;margin-bottom:12px;-webkit-appearance:none}
+input[type=text],input[type=password],input[type=date],input[type=time],select,textarea{width:100%;min-height:58px;padding:10px 16px;border-radius:16px;border:1.5px solid var(--line);background:var(--card);color:var(--fg);font:inherit;font-size:19px;margin-bottom:12px;-webkit-appearance:none}
 select{width:100%;min-height:52px;padding:6px 8px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);color:var(--fg);font:inherit;font-size:16px;min-width:0}
 textarea{min-height:150px;resize:vertical}
 .frow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px}
@@ -413,8 +413,11 @@ const STEP = {
       const on = S.slots.includes(i);
       return `<button class="it ${on?"sel":""}" data-a="preset" data-v="${i}"><span class="sq" style="background:#FF950033">🕒</span><span class="tx">${p.join("~")}</span>${(i===rec&&!S.slots.length&&!S.direct)?`<span class="pill rc">추천</span>`:`<span class="ck"></span>`}</button>`;
     }).join("");
-    const direct = S.direct ? `<div class="box glass" style="padding:14px"><div style="display:flex;gap:10px"><div style="flex:1"><div class="l" style="font-size:15px;color:var(--sub)">시작</div><input type="time" id="tstart" step="300" value="${esc(S.start)}" style="margin:4px 0 0"></div>
-        <div style="flex:1"><div class="l" style="font-size:15px;color:var(--sub)">종료</div><input type="time" id="tend" step="300" value="${esc(S.end)}" style="margin:4px 0 0"></div></div></div>` : "";
+    const halfHours = (from, to) => { const a = []; for(let m = from; m <= to; m += 30) a.push(String(Math.floor(m/60)).padStart(2,"0") + ":" + String(m%60).padStart(2,"0")); return a; };
+    const opts = (list, cur) => { if(cur && !list.includes(cur)) list = list.concat(cur).sort(); return `<option value="">선택</option>` + list.map(t => `<option value="${t}" ${t===cur?"selected":""}>${t}</option>`).join(""); };
+    const sMin = S.start ? toMin(S.start) : 0;
+    const direct = S.direct ? `<div class="box glass" style="padding:14px"><div style="display:flex;gap:10px"><div style="flex:1"><div class="l" style="font-size:15px;color:var(--sub)">시작 (30분 단위)</div><select id="tstart" style="margin:4px 0 0">${opts(halfHours(5*60, 23*60+30), S.start)}</select></div>
+        <div style="flex:1"><div class="l" style="font-size:15px;color:var(--sub)">종료 (30분 단위)</div><select id="tend" style="margin:4px 0 0">${opts(halfHours(S.start ? sMin + 30 : 5*60+30, 24*60), S.end)}</select></div></div></div>` : "";
     let err = "";
     if(c) err = `<div class="warn">선택한 시간(<b>${esc(r[0])} ~ ${esc(r[1])}</b>)은 쓸 수 없어요.<br>${esc(c.start)}~${esc(c.end)}에 이미 일지가 있어요. 시간을 고쳐 주세요.</div>`;
     else if(S.direct && S.start && S.end && toMin(S.end) <= toMin(S.start)) err = `<div class="warn">종료 시간이 시작 시간보다 늦어야 해요.</div>`;
@@ -685,7 +688,7 @@ document.addEventListener("input", e => {
 document.addEventListener("change", async e => {
   const id = e.target.id;
   if(id === "datepick" && e.target.value){ S.date = e.target.value; editDate = false; saveDraft(); render(); loadMyLogs(); }
-  if(id === "tstart"){ S.start = e.target.value; saveDraft(); render(); }
+  if(id === "tstart"){ S.start = e.target.value; if(S.end && S.start && toMin(S.end) <= toMin(S.start)) S.end = ""; saveDraft(); render(); }
   if(id === "tend"){ S.end = e.target.value; saveDraft(); render(); }
   if(id === "yfsel"){ yf = e.target.value; hf = ""; ef = ""; renderProjectLists(); }
   if(id === "hfsel"){ hf = e.target.value; ef = ""; if(hf) yf = hf.split("|")[0]; renderProjectLists(); }
@@ -720,7 +723,8 @@ window.addEventListener("online", () => { flushOps(); flushQueue(); });
   if(CONFIG.API_URL && !getPin()){ view = "pin"; render(); return; }
   render();
   await loadMaster();
-  if(view !== "pin") view = who ? "home" : "setup";
+  // 서버 응답을 기다리는 동안 사용자가 다음 화면으로 넘어갔다면 그대로 둔다(첫 화면으로 되돌리지 않음)
+  if(view === "home" || view === "setup") view = who ? "home" : "setup";
   render();
   flushOps();
   flushQueue();
