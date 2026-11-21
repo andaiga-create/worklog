@@ -113,6 +113,7 @@ function getMaster_() {
     .concat(out.vendorRows.filter(function (r) { return r.name; })
       .map(function (r) { return { name: r.name, affil: "외주", vendor: r.vendor }; }));
   out.vendors = vendorNames.map(function (n) { return { name: n }; });
+  out.ver = "2026-11-21-parts";   // 배포된 코드 버전 확인용(주소로 master를 열어 ver가 보이면 최신)
   delete out.staff;
   delete out.vendorRows;
   return out;
