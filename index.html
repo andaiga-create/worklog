@@ -382,7 +382,7 @@ const STEP = {
       ${rows.length ? `<div class="grp">${rows.map(r => sel(r.yard===S.yard&&r.hull===S.hull&&r.equip===S.equip,
           `data-a="pickproj" data-y="${esc(r.yard)}" data-h="${esc(r.hull)}" data-e="${esc(r.equip)}"`,
           `<span class="sq" style="background:var(--selBg)">🚢</span><span class="tx">${esc(r.yard)}-${esc(r.hull)}-${esc(r.equip)}<small>${r.tag}</small></span>`)).join("")}</div>` : ""}
-      <input type="text" id="q" placeholder="🔍 다른 프로젝트 검색 (호선, 장비)" value="${esc(q)}" style="margin-bottom:6px">
+      <input type="text" id="q" placeholder="🔍 다른 프로젝트 검색 (호선, 장비, 품명)" value="${esc(q)}" style="margin-bottom:6px">
       <button class="lnk" data-a="filter">${showFilter ? "조선소·호선·장비로 찾기 닫기" : "조선소 · 호선 · 장비로 찾기"}</button>
       <div id="plist"></div>`;
   },
