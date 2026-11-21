@@ -67,7 +67,7 @@ function sendReportForDate_(d, to) {
   if (!day.length) return "skip: 일지 없음";
   if (!to.length) return "skip: 받는 사람 없음";
   var rep = buildReport_(d, day, all);
-  MailApp.sendEmail({ to: to.join(","), subject: rep.subject, htmlBody: rep.html, body: rep.subject, name: REPORT_SENDER });
+  MailApp.sendEmail({ to: to.join(","), subject: rep.subject, htmlBody: rep.html, body: rep.subject, name: REPORT_SENDER, inlineImages: rep.images });
   return "sent " + day.length + "건";
 }
 
@@ -77,6 +77,7 @@ function mins_(l) {
   var m = (Number(b[0]) * 60 + Number(b[1])) - (Number(a[0]) * 60 + Number(a[1]));
   return m > 0 ? m : 0;
 }
+function mh_(m) { return (Math.round(m / 60 * 10) / 10) + "MH"; }
 function hh_(m) { return (Math.round(m / 60 * 10) / 10) + "h"; }
 function esc_(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function isExt_(l) { return l.affil === "외주" || !!l.vendor; }
@@ -88,6 +89,19 @@ function chip_(status) {
 }
 function projKey_(l) { return l.yard + "-" + l.hull + "-" + l.equip; }
 function uniq_(arr) { var o = []; arr.forEach(function (x) { if (x && o.indexOf(x) < 0) o.push(x); }); return o; }
+
+/* ---------- 원형 그래프(이미지, Apps Script 내장 차트 사용) ---------- */
+var PIE_COLORS = ["#3b82f6", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#9ca3af"];
+function makePie_(cid, pairs) {
+  try {
+    var dt = Charts.newDataTable().addColumn(Charts.ColumnType.STRING, "구분").addColumn(Charts.ColumnType.NUMBER, "MH");
+    pairs.forEach(function (p) { dt.addRow([p[0], Math.round(p[1] / 60 * 10) / 10]); });
+    var colors = pairs.map(function (p, i) { return PIE_COLORS[i % PIE_COLORS.length]; });
+    var chart = Charts.newPieChart().setDataTable(dt.build()).setDimensions(280, 200).setColors(colors)
+      .setLegendPosition(Charts.Position.NONE).setPieSliceText("percentage").setBackgroundColor("#fcfcfd").build();
+    return chart.getAs("image/png").setName(cid + ".png");
+  } catch (e) { return null; }   // 그래프가 실패해도 표만으로 보고서는 나간다
+}
 
 /* ---------- HTML 조각 ---------- */
 var TD = "padding:6px 9px;font-size:13px;white-space:nowrap;border-bottom:1px solid #eef0f3;text-align:left;vertical-align:middle;color:#1f2937";
@@ -143,6 +157,7 @@ function buildReport_(d, day, all) {
 
   // 프로젝트별 작업 상세
   h += sec_("프로젝트별 작업 상세");
+  var images = {}, pieN = 0;
   projKeys.forEach(function (k) {
     var rows = day.filter(function (l) { return projKey_(l) === k; });
     rows.sort(function (a, b) {
@@ -158,7 +173,16 @@ function buildReport_(d, day, all) {
     h += '<table style="width:100%;border-collapse:collapse;background:#f9fafb"><tr><td style="padding:8px 12px;white-space:nowrap"><b style="font-size:14px">' + esc_(k) + '</b> &nbsp;<span style="color:#6b7280;font-size:12px">' + esc_(pn) + '</span></td>' +
       '<td style="padding:8px 12px;text-align:right;white-space:nowrap;color:#6b7280;font-size:12px">전일 작업자 ' + uniq_(rows.map(function (l) { return l.writer; })).length + '명 · 일지 ' + rows.length + '건 · <b style="color:#1f2937">' + hh_(rMin) + '</b> &nbsp;' + chip_(pcolor).replace(esc_(pcolor), pst) + '</td></tr></table>';
 
-    // 작업구분별 누적(착수일부터 보고일까지, 해당 프로젝트 전체 일지)
+    // 전일 상세 (카드 위쪽)
+    h += '<table style="width:100%;border-collapse:collapse"><tr>' + th_("작업자", ";width:150px") + th_("시간", ";width:120px") + th_("시수", ";text-align:right;width:54px") +
+      th_("작업구분", ";width:90px") + th_("작업항목", ";width:240px") + th_("메모") + th_("상태", ";width:120px") + '</tr>';
+    rows.forEach(function (l) {
+      h += '<tr>' + td_(who_(l)) + td_(esc_(l.start) + "~" + esc_(l.end)) + td_(hh_(mins_(l)), ";text-align:right") + td_(esc_(l.type)) +
+        td_(esc_((l.items || []).join(", ")), ";white-space:normal") + td_(esc_(l.detail || "-"), ";white-space:normal;color:#374151") + td_(chip_(l.status)) + '</tr>';
+    });
+    h += '</table>';
+
+    // 작업구분별 누적 MH (착수일부터 보고일까지, 해당 프로젝트 전체 일지) - 카드 아래쪽, 표 + 원형 그래프
     var cum = {}, order = [], first = "9999", total = 0;
     all.forEach(function (l) {
       if (projKey_(l) !== k || l.date > d) return;
@@ -170,30 +194,27 @@ function buildReport_(d, day, all) {
       if (l.date === d) cum[t].day += m;
       if (l.date < first) first = l.date;
     });
-    order.sort(function (a, b) { return cum[b].m - cum[a].m; });
+    order.sort(function (a2, b2) { return cum[b2].m - cum[a2].m; });
     var allWho = {}, dayTot = 0;
-    h += '<div style="padding:8px 12px;border-top:1px solid #d1d5db;border-bottom:1px solid #d1d5db;background:#fcfcfd"><div style="font-size:12px;color:#6b7280;margin-bottom:4px">작업구분별 누적 작업시간 · ' + d + ' 기준 (최초 일지 ' + first + ' ~)</div>' +
-      '<table style="width:100%;border-collapse:collapse"><tr>' + th_("작업구분", ";width:110px") + th_("누적(인시)", ";text-align:right;width:100px") + th_("전일", ";text-align:right;width:90px") +
-      th_("작업일수", ";text-align:right;width:90px") + th_("참여인원", ";text-align:right;width:90px") + th_("비중") + '</tr>';
-    order.forEach(function (t) {
+    var cid = "pie" + (++pieN), pie = makePie_(cid, order.map(function (t) { return [t, cum[t].m]; }));
+    if (pie) images[cid] = pie;
+
+    h += '<div style="padding:8px 12px;border-top:1px solid #d1d5db;background:#fcfcfd"><div style="font-size:12px;color:#6b7280;margin-bottom:4px">작업구분별 누적 MH · ' + d + ' 기준 (최초 일지 ' + first + ' ~)</div>' +
+      '<table style="width:100%;border-collapse:collapse"><tr><td style="vertical-align:top;padding:0">' +
+      '<table style="width:100%;border-collapse:collapse"><tr>' + th_("작업구분", ";width:140px") + th_("누적 MH", ";text-align:right;width:100px") + th_("비중", ";text-align:right;width:70px") +
+      th_("전일 MH", ";text-align:right;width:90px") + th_("작업일수", ";text-align:right;width:80px") + th_("참여인원", ";text-align:right;width:80px") + '</tr>';
+    order.forEach(function (t, i) {
       var c = cum[t], pct = total ? Math.round(c.m / total * 100) : 0;
       Object.keys(c.who).forEach(function (w) { allWho[w] = 1; });
       dayTot += c.day;
-      h += '<tr>' + td_(esc_(t)) + td_("<b>" + hh_(c.m) + "</b>", ";text-align:right") + td_(c.day ? "+" + hh_(c.day) : "-", ";text-align:right;color:#1e40af") +
-        td_(Object.keys(c.dates).length + "일", ";text-align:right") + td_(Object.keys(c.who).length + "명", ";text-align:right") +
-        td_('<div style="height:8px;width:320px;background:#e5e7eb;border-radius:4px"><div style="height:8px;width:' + pct + '%;background:#3b82f6;border-radius:4px"></div></div>') + '</tr>';
+      h += '<tr>' + td_('<span style="display:inline-block;width:10px;height:10px;border-radius:5px;background:' + PIE_COLORS[i % PIE_COLORS.length] + ';margin-right:6px"></span>' + esc_(t)) +
+        td_("<b>" + mh_(c.m) + "</b>", ";text-align:right") + td_(pct + "%", ";text-align:right") + td_(c.day ? "+" + mh_(c.day) : "-", ";text-align:right;color:#1e40af") +
+        td_(Object.keys(c.dates).length + "일", ";text-align:right") + td_(Object.keys(c.who).length + "명", ";text-align:right") + '</tr>';
     });
-    h += '<tr>' + td_("<b>합계</b>", ";border-bottom:0") + td_("<b>" + hh_(total) + "</b>", ";text-align:right;border-bottom:0") + td_("<b>+" + hh_(dayTot) + "</b>", ";text-align:right;color:#1e40af;border-bottom:0") +
-      td_("-", ";text-align:right;border-bottom:0") + td_(Object.keys(allWho).length + "명", ";text-align:right;border-bottom:0") + td_("", ";border-bottom:0") + '</tr></table></div>';
-
-    // 전일 상세
-    h += '<table style="width:100%;border-collapse:collapse"><tr>' + th_("작업자", ";width:150px") + th_("시간", ";width:120px") + th_("시수", ";text-align:right;width:54px") +
-      th_("작업구분", ";width:90px") + th_("작업항목", ";width:240px") + th_("메모") + th_("상태", ";width:120px") + '</tr>';
-    rows.forEach(function (l) {
-      h += '<tr>' + td_(who_(l)) + td_(esc_(l.start) + "~" + esc_(l.end)) + td_(hh_(mins_(l)), ";text-align:right") + td_(esc_(l.type)) +
-        td_(esc_((l.items || []).join(", ")), ";white-space:normal") + td_(esc_(l.detail || "-"), ";white-space:normal;color:#374151") + td_(chip_(l.status)) + '</tr>';
-    });
-    h += '</table></div>';
+    h += '<tr>' + td_("<b>합계</b>", ";border-bottom:0") + td_("<b>" + mh_(total) + "</b>", ";text-align:right;border-bottom:0") + td_("100%", ";text-align:right;border-bottom:0") +
+      td_("<b>+" + mh_(dayTot) + "</b>", ";text-align:right;color:#1e40af;border-bottom:0") + td_("-", ";text-align:right;border-bottom:0") + td_(Object.keys(allWho).length + "명", ";text-align:right;border-bottom:0") + '</tr></table>' +
+      '</td>' + (pie ? '<td style="width:300px;vertical-align:middle;text-align:center;padding:0 0 0 12px"><img src="cid:' + cid + '" width="280" height="200" alt="작업구분별 비중" style="display:block"></td>' : '') + '</tr></table></div>';
+    h += '</div>';
   });
 
   // 소속별 작업시간 (맨 아래)
@@ -215,7 +236,7 @@ function buildReport_(d, day, all) {
     td_("<b>" + hh_(totMin) + "</b>", ";text-align:right;border-bottom:0") + td_("", ";border-bottom:0") + '</tr></table>';
 
   var url = ""; try { url = SpreadsheetApp.getActiveSpreadsheet().getUrl(); } catch (e2) {}
-  h += '<div style="font-size:12.5px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:10px;margin-top:18px">시수는 시작~종료 시간 기준 인시(쉬는 시간 포함)입니다. 받는 사람은 시트의 \'' + REPORT_TAB + '\' 탭에서 바꿀 수 있습니다.' + (url ? ' · <a href="' + url + '" style="color:#1e40af">시트 열기</a>' : '') + '</div>';
+  h += '<div style="font-size:12.5px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:10px;margin-top:18px">시수와 MH는 시작~종료 시간 기준 인시(쉬는 시간 포함)입니다. 받는 사람은 시트의 \'' + REPORT_TAB + '\' 탭에서 바꿀 수 있습니다.' + (url ? ' · <a href="' + url + '" style="color:#1e40af">시트 열기</a>' : '') + '</div>';
   h += '</div>';
-  return { subject: subject, html: h };
+  return { subject: subject, html: h, images: images };
 }
