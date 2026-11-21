@@ -77,7 +77,7 @@ function mins_(l) {
   var m = (Number(b[0]) * 60 + Number(b[1])) - (Number(a[0]) * 60 + Number(a[1]));
   return m > 0 ? m : 0;
 }
-function mh_(m) { return (Math.round(m / 60 * 10) / 10) + "MH"; }
+function mh_(m) { return (Math.round(m / 60 * 10) / 10) + "h"; }
 function hh_(m) { return (Math.round(m / 60 * 10) / 10) + "h"; }
 function esc_(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function isExt_(l) { return l.affil === "외주" || !!l.vendor; }
