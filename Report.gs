@@ -98,9 +98,9 @@ function makePie_(cid, pairs) {
     pairs.forEach(function (p) { dt.addRow([p[0], Math.round(p[1] / 60 * 10) / 10]); });
     var colors = pairs.map(function (p, i) { return PIE_COLORS[i % PIE_COLORS.length]; });
     var chart = Charts.newPieChart().setDataTable(dt.build()).setDimensions(280, 200).setColors(colors)
-      .setLegendPosition(Charts.Position.NONE).setPieSliceText("percentage").setBackgroundColor("#fcfcfd").build();
+      .setLegendPosition(Charts.Position.NONE).setOption("pieSliceText", "percentage").setBackgroundColor("#fcfcfd").build();
     return chart.getAs("image/png").setName(cid + ".png");
-  } catch (e) { return null; }   // 그래프가 실패해도 표만으로 보고서는 나간다
+  } catch (e) { Logger.log("원형 그래프 실패: " + e); return null; }   // 그래프가 실패해도 표만으로 보고서는 나간다
 }
 
 /* ---------- HTML 조각 ---------- */
@@ -136,7 +136,7 @@ function buildReport_(d, day, all) {
 
   var subject = "[생산부서 전일 작업보고] " + dlabel + " · 일지 " + day.length + "건 / 작업자 " + writers.length + "명 / " + hh_(totMin) + (st.hd ? " · 보류 " + st.hd + "건" : "");
 
-  var h = '<div style="max-width:1040px;font-family:-apple-system,\'Malgun Gothic\',sans-serif;color:#1f2937;border:1px solid #e5e7eb;border-radius:10px;padding:22px 24px">';
+  var h = '<div style="max-width:1500px;font-family:-apple-system,\'Malgun Gothic\',sans-serif;color:#1f2937;border:1px solid #e5e7eb;border-radius:10px;padding:22px 24px">';
   h += '<table style="width:100%;border-collapse:collapse"><tr><td style="font-size:20px;font-weight:bold">' + dlabel + ' 작업일지 보고</td><td style="text-align:right;font-size:12.5px;color:#6b7280">' + REPORT_SITE + ' · 자동 발송 · 작성일 ' + d + ' 전체</td></tr></table>';
 
   h += '<table style="width:100%;border-collapse:collapse;margin-top:14px"><tr>' +
@@ -175,7 +175,7 @@ function buildReport_(d, day, all) {
 
     // 전일 상세 (카드 위쪽)
     h += '<table style="width:100%;border-collapse:collapse"><tr>' + th_("작업자", ";width:150px") + th_("시간", ";width:120px") + th_("시수", ";text-align:right;width:54px") +
-      th_("작업구분", ";width:90px") + th_("작업항목", ";width:240px") + th_("메모") + th_("상태", ";width:120px") + '</tr>';
+      th_("작업구분", ";width:90px") + th_("작업항목", ";width:27%") + th_("메모", ";width:38%") + th_("상태", ";width:120px") + '</tr>';
     rows.forEach(function (l) {
       h += '<tr>' + td_(who_(l)) + td_(esc_(l.start) + "~" + esc_(l.end)) + td_(hh_(mins_(l)), ";text-align:right") + td_(esc_(l.type)) +
         td_(esc_((l.items || []).join(", ")), ";white-space:normal") + td_(esc_(l.detail || "-"), ";white-space:normal;color:#374151") + td_(chip_(l.status)) + '</tr>';
