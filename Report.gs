@@ -134,7 +134,7 @@ function buildReport_(d, day, all) {
   var nOwn = writers.length - nExt;
   var projKeys = uniq_(day.map(projKey_)).sort();
 
-  var subject = "[작업일지] " + dlabel + " 전일 보고 · 일지 " + day.length + "건 / 작업자 " + writers.length + "명 / " + hh_(totMin) + (st.hd ? " · 보류 " + st.hd + "건" : "");
+  var subject = "[생산부서 전일 작업보고] " + dlabel + " · 일지 " + day.length + "건 / 작업자 " + writers.length + "명 / " + hh_(totMin) + (st.hd ? " · 보류 " + st.hd + "건" : "");
 
   var h = '<div style="max-width:1040px;font-family:-apple-system,\'Malgun Gothic\',sans-serif;color:#1f2937;border:1px solid #e5e7eb;border-radius:10px;padding:22px 24px">';
   h += '<table style="width:100%;border-collapse:collapse"><tr><td style="font-size:20px;font-weight:bold">' + dlabel + ' 작업일지 보고</td><td style="text-align:right;font-size:12.5px;color:#6b7280">' + REPORT_SITE + ' · 자동 발송 · 작성일 ' + d + ' 전체</td></tr></table>';
