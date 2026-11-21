@@ -72,10 +72,26 @@ function sendReportForDate_(d, to) {
 }
 
 /* ---------- 계산 도우미 ---------- */
-function mins_(l) {
-  var a = String(l.start).split(":"), b = String(l.end).split(":");
-  var m = (Number(b[0]) * 60 + Number(b[1])) - (Number(a[0]) * 60 + Number(a[1]));
+// 시작~종료 시간에서 식사시간(점심 12:00~13:00, 저녁 17:30~18:00)과 겹치는 만큼을 뺀 분 (앱의 시수 계산과 같은 규칙)
+var REPORT_BREAKS = [[720, 780], [1050, 1080]];
+function netMins_(start, end) {
+  var a = String(start).split(":"), b = String(end).split(":");
+  var s = Number(a[0]) * 60 + Number(a[1]), e = Number(b[0]) * 60 + Number(b[1]);
+  if (!(e > s)) return 0;
+  var m = e - s;
+  REPORT_BREAKS.forEach(function (x) { m -= Math.max(0, Math.min(e, x[1]) - Math.max(s, x[0])); });
   return m > 0 ? m : 0;
+}
+function mins_(l) { return netMins_(l.start, l.end); }
+
+// 이미 쌓인 일지의 '작업시간' 열(N열)을 식사시간 제외 규칙으로 다시 계산한다: 편집기에서 ▶ 한 번 실행
+function recalcHours() {
+  var sh = getLogSheet_(), last = sh.getLastRow();
+  if (last < 2) return;
+  var vals = sh.getRange(2, 11, last - 1, 3).getValues();   // K 작업항목, L 시작, M 종료
+  var out = vals.map(function (r) { return [String(Math.round(netMins_(r[1], r[2]) / 60 * 100) / 100)]; });
+  sh.getRange(2, 14, last - 1, 1).setValues(out);
+  Logger.log(out.length + "행 다시 계산");
 }
 function mh_(m) { return (Math.round(m / 60 * 10) / 10) + "h"; }
 function hh_(m) { return (Math.round(m / 60 * 10) / 10) + "h"; }

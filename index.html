@@ -102,7 +102,8 @@ const CONFIG = {
   STATUSES: ["완료","진행중","보류-부품대기","보류-선주확인"],
 
   // 시간대 버튼. 이어진(바로 옆) 버튼끼리만 함께 선택 가능, 총 작업시간은 선택한 시간대 합계(휴식 포함, 점심·저녁 제외)
-  TIME: { presets: [["08:30","10:00"],["10:00","12:00"],["13:00","15:00"],["15:00","17:30"],["18:00","20:00"]] },
+  TIME: { presets: [["08:30","10:00"],["10:00","12:00"],["13:00","15:00"],["15:00","17:30"],["18:00","20:00"]],
+         breaks: [["12:00","13:00"],["17:30","18:00"]] },   // 점심·저녁 식사시간은 작업시간에서 뺀다
 
   PHOTO: { max: 5, maxSize: 1280, quality: 0.7 },
   RECENT_MAX: 5
@@ -239,9 +240,17 @@ function range(){
   if(!S.slots.length) return null;
   return [P()[S.slots[0]][0], P()[S.slots[S.slots.length-1]][1]];
 }
+// 시작~종료 사이 시간에서 식사시간(점심 12:00~13:00, 저녁 17:30~18:00)과 겹치는 만큼을 뺀 분
+function netMin(a, b){
+  const s = toMin(a), e = toMin(b);
+  if(e <= s) return 0;
+  let m = e - s;
+  CONFIG.TIME.breaks.forEach(([b0, b1]) => { m -= Math.max(0, Math.min(e, toMin(b1)) - Math.max(s, toMin(b0))); });
+  return Math.max(0, m);
+}
 function totalMin(){
-  if(S.direct) return (S.start && S.end) ? Math.max(0, toMin(S.end) - toMin(S.start)) : 0;
-  return S.slots.reduce((t,i) => t + toMin(P()[i][1]) - toMin(P()[i][0]), 0);
+  if(S.direct) return (S.start && S.end) ? netMin(S.start, S.end) : 0;
+  return S.slots.reduce((t,i) => t + netMin(P()[i][0], P()[i][1]), 0);
 }
 const hoursNum = () => Math.round(totalMin()/60*100)/100;
 const timeTxt = () => S.direct ? `${S.start} ~ ${S.end}` : S.slots.map(i => P()[i].join("~")).join(", ");
