@@ -111,7 +111,7 @@ const CONFIG = {
 /* 데모 모드용 샘플 마스터 */
 const DEMO_MASTER = {
   projects:[
-    {yard:"HHI",yardName:"HHI",hull:"8123",owner:"",name:"크레인",code:"",serial:""},
+    {yard:"HHI",yardName:"HHI",hull:"8123",owner:"",name:"크레인",code:"",serial:"",parts:["Ts motor","특수성능 자체검사"]},
     {yard:"HHI",yardName:"HHI",hull:"8123",owner:"",name:"윈치",code:"",serial:""},
     {yard:"HHI",yardName:"HHI",hull:"8124",owner:"",name:"크레인",code:"",serial:""},
     {yard:"SHI",yardName:"SHI",hull:"2201",owner:"",name:"크레인",code:"",serial:""}],
@@ -455,7 +455,13 @@ const STEP = {
 /* ---------- 프로젝트 검색 ---------- */
 function projMatches(p, term){
   if(!term) return true;
-  return [p.yard, p.yardName, p.hull, p.name, p.code, p.owner, p.serial].join(" ").toLowerCase().includes(term.toLowerCase());
+  return [p.yard, p.yardName, p.hull, p.name, p.code, p.owner, p.serial].concat(p.parts || []).join(" ").toLowerCase().includes(term.toLowerCase());
+}
+// 검색어에 걸린 품명(최대 3개)을 카드 아래에 보여 준다
+function partHits(p, term){
+  const t = (term || "").trim().toLowerCase();
+  if(!t || !p.parts) return [];
+  return p.parts.filter(x => x.toLowerCase().includes(t)).slice(0, 3);
 }
 function renderProjectLists(){
   const el = $("#plist"); if(!el) return;
@@ -478,7 +484,7 @@ function renderProjectLists(){
     const list = byH.filter(p => (!ef || key(p) === ef) && projMatches(p, q.trim())).slice(0, 30);
     body = list.length ? `<div class="grp">${list.map(p => sel(p.yard===S.yard&&p.hull===S.hull&&p.name===S.equip,
         `data-a="pickproj" data-y="${esc(p.yard)}" data-h="${esc(p.hull)}" data-e="${esc(p.name)}"`,
-        `<span class="sq" style="background:var(--selBg)">🚢</span><span class="tx">${esc(p.yard)}-${esc(p.hull)}-${esc(p.name)}</span>`)).join("")}</div>`
+        `<span class="sq" style="background:var(--selBg)">🚢</span><span class="tx">${esc(p.yard)}-${esc(p.hull)}-${esc(p.name)}${partHits(p, q).length ? `<small>품명: ${partHits(p, q).map(esc).join(", ")}</small>` : ""}</span>`)).join("")}</div>`
       : `<p class="sub">해당하는 프로젝트가 없어요.</p>`;
   } else if(!all.length) body = `<p class="sub">등록된 프로젝트가 없어요. 시트의 '프로젝트' 탭을 확인하세요.</p>`;
   else body = `<p class="sub">검색어를 입력하면 프로젝트가 표시돼요.</p>`;

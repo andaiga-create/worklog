@@ -16,7 +16,7 @@ var MY_LOG_LIMIT = 100;
 var MASTER_TABS = {
   // 진행 중인 [조선소-호선-장비] 한 줄이 프로젝트 하나
   // 진행 중인 프로젝트 한 줄 = "조선소-호선-장비" (예: HHI-8123-크레인). 앱이 앞에서 두 번째 '-'까지만 나눠 인식한다
-  projects:{ tab: "프로젝트", cols: { label: "프로젝트" } },
+  projects:{ tab: "프로젝트", cols: { label: "프로젝트", part: "품명" } },   // B열 '품명'은 검색용(없어도 됨)
   staff:   { tab: "작업자",   cols: { name: "이름" } },                          // 직영 작업자
   vendorRows: { tab: "외주업체", cols: { vendor: "업체명", name: "작업자명" } },  // 업체명 - 작업자명 (한 줄에 한 명)
   items:   { tab: "작업항목", cols: { type: "작업구분", name: "항목명" } }
@@ -79,6 +79,7 @@ function getMaster_() {
     var idx = {};
     Object.keys(def.cols).forEach(function (k) { idx[k] = head.indexOf(def.cols[k]); });
     if (key === "projects" && idx.label < 0) idx.label = 0;   // 헤더 이름이 달라도 A열을 사용
+    if (key === "projects" && idx.part < 0 && head.length > 1) idx.part = 1;   // 헤더 이름이 달라도 B열을 품명으로 사용
     for (var r = 1; r < values.length; r++) {
       var row = {}, empty = true;
       Object.keys(idx).forEach(function (k) {
@@ -90,16 +91,20 @@ function getMaster_() {
     }
   });
   // 프로젝트: "조선소-호선-장비" 문자열을 조선소/호선/장비로 분리 (장비명 안의 '-'는 그대로 유지)
+  // 같은 프로젝트가 품명별로 여러 줄이면 한 프로젝트로 합치고 품명은 parts 목록에 모은다
   var seen = {};
-  out.projects = out.projects.map(function (r) {
+  var projs = [];
+  out.projects.forEach(function (r) {
     var m = String(r.label || "").match(/^\s*([^-]+?)\s*-\s*([^-]+?)\s*-\s*(.+?)\s*$/);
-    if (!m) return null;
-    return { yard: m[1], yardName: m[1], hull: m[2], owner: "", name: m[3], code: "", serial: "" };
-  }).filter(function (p) {
-    if (!p) return false;
-    var k = p.yard + "|" + p.hull + "|" + p.name;
-    if (seen[k]) return false; seen[k] = true; return true;
+    if (!m) return;
+    var k = m[1] + "|" + m[2] + "|" + m[3];
+    if (!seen[k]) {
+      seen[k] = { yard: m[1], yardName: m[1], hull: m[2], owner: "", name: m[3], code: "", serial: "", parts: [] };
+      projs.push(seen[k]);
+    }
+    if (r.part && seen[k].parts.indexOf(r.part) < 0) seen[k].parts.push(r.part);
   });
+  out.projects = projs;
   // 앱이 쓰는 형태로 변환: workers(직영+외주 전원), vendors(업체 목록)
   var vendorNames = [];
   out.vendorRows.forEach(function (r) { if (r.vendor && vendorNames.indexOf(r.vendor) < 0) vendorNames.push(r.vendor); });
@@ -200,7 +205,28 @@ function saveLog_(d) {
   var rng = sh.getRange(last + 1, 1, 1, LOG_HEADERS.length);
   rng.setNumberFormat("@");              // 날짜/숫자 자동 변환 방지
   rng.setValues([row.map(String)]);
+  if (links.length > 1) setPhotoRichText_(sh.getRange(last + 1, 18), links);
   return { ok: true, id: id, photos: links };
+}
+
+/* 사진이 여러 장이면 시트가 자동으로 링크를 걸지 않으므로, 줄마다 링크를 직접 건다(보이는 글자는 주소 그대로) */
+function setPhotoRichText_(cell, links) {
+  var text = links.join("\n");
+  var b = SpreadsheetApp.newRichTextValue().setText(text);
+  var pos = 0;
+  links.forEach(function (u) { b.setLinkUrl(pos, pos + u.length, u); pos += u.length + 1; });
+  cell.setRichTextValue(b.build());
+}
+
+/* 이미 쌓인 여러 장 사진 행의 링크를 한 번에 걸어 준다: Apps Script 편집기에서 이 함수를 선택해 ▶ 실행 */
+function fixPhotoLinks() {
+  var sh = getLogSheet_();
+  var last = sh.getLastRow();
+  for (var r = 2; r <= last; r++) {
+    var cell = sh.getRange(r, 18);
+    var urls = String(cell.getValue()).split("\n").map(function (s) { return s.trim(); }).filter(function (s) { return /^https?:\/\//.test(s); });
+    if (urls.length > 1) setPhotoRichText_(cell, urls);
+  }
 }
 
 function savePhotos_(id, photos) {
