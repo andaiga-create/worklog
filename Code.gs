@@ -19,7 +19,8 @@ var MASTER_TABS = {
   projects:{ tab: "프로젝트", cols: { label: "프로젝트", part: "품명" } },   // B열 '품명'은 검색용(없어도 됨)
   staff:   { tab: "작업자",   cols: { name: "이름" } },                          // 직영 작업자
   vendorRows: { tab: "외주업체", cols: { vendor: "업체명", name: "작업자명" } },  // 업체명 - 작업자명 (한 줄에 한 명)
-  items:   { tab: "작업항목", cols: { type: "작업구분", name: "항목명" } }
+  items:   { tab: "작업항목", cols: { type: "작업구분", name: "항목명" } },
+  inspItems: { tab: "검사항목", cols: { type: "검사구분", name: "부품명" } }   // 검사신청의 부품 목록 (성능검사/출하검사)
 };
 
 // 작업일지 시트 헤더 (마지막 '클라이언트ID'는 중복 제출 방지용)
@@ -34,6 +35,7 @@ function doGet(e) {
   try {
     if (p.action === "master") return json_(getMaster_());
     if (p.action === "mylogs") return json_({ logs: getMyLogs_(p.writer) });
+    if (p.action === "myinsp") return json_({ items: getMyInsp_(p.writer) });
     if (p.action === "export") return json_({ logs: readLogs_().filter(function (l) { return (!p.from || l.date >= p.from) && (!p.to || l.date <= p.to); }) });
     if (p.action === "last") return json_({ log: getLastLog_(p.yard, p.hull, p.equip) });
     return json_({ error: "unknown action" });
@@ -50,6 +52,7 @@ function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
+    if (data.action === "insp") return json_(saveInsp_(data));
     if (data.action === "itemops") { applyItemOps_(data.ops || []); return json_({ ok: true }); }
     return json_(saveLog_(data));
   } catch (err) {
@@ -120,14 +123,21 @@ function getMaster_() {
 }
 
 /* ===== 작업항목 추가/수정/삭제 (A열=작업구분, B열=항목명) ===== */
-function applyItemOps_(ops) {
+function opSheet_(scope) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(MASTER_TABS.items.tab);
+  var insp = scope === "insp";
+  var tab = insp ? MASTER_TABS.inspItems.tab : MASTER_TABS.items.tab;
+  var sh = ss.getSheetByName(tab);
   if (!sh) {
-    sh = ss.insertSheet(MASTER_TABS.items.tab);
-    sh.getRange(1, 1, 1, 2).setValues([["작업구분", "항목명"]]).setFontWeight("bold");
+    sh = ss.insertSheet(tab);
+    sh.getRange(1, 1, 1, 2).setValues([insp ? ["검사구분", "부품명"] : ["작업구분", "항목명"]]).setFontWeight("bold");
   }
+  return sh;
+}
+
+function applyItemOps_(ops) {
   ops.forEach(function (o) {
+    var sh = opSheet_(o.scope);   // scope "insp" 이면 '검사항목' 탭, 아니면 '작업항목' 탭
     var last = sh.getLastRow();
     var vals = last > 1 ? sh.getRange(2, 1, last - 1, 2).getDisplayValues() : [];
     var hits = [], blank = -1, same = 0;

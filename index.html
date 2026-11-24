@@ -55,7 +55,11 @@ textarea{min-height:150px;resize:vertical}
 .frow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px}
 .lnk{background:none;border:0;color:var(--blue);font-size:17px;text-decoration:underline;padding:6px 0;margin:2px 0 8px;display:inline-block}
 .big{height:68px;border-radius:34px;font-size:22px;font-weight:600;width:100%;border:0;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:10px}
-.big.p{background:var(--blue);color:#fff}.big.g{color:var(--blue)}
+.big.p{background:var(--blue);color:#fff}.big.g{color:var(--blue)}.big.o{background:#FF9500;color:#fff}
+.it .qt{display:flex;align-items:center;gap:6px;font-size:20px;font-weight:600}.it .qt button{width:36px;height:36px;border-radius:18px;border:0;background:var(--line);font-size:20px;font-weight:700;color:var(--fg)}
+.it .tx.tb{background:none;border:0;font:inherit;color:inherit;text-align:left;padding:0;min-height:50px}
+.ch2{display:inline-block;font-size:14px;padding:2px 10px;border-radius:12px;font-weight:600;white-space:nowrap}.ch2.ok{background:#dcfce7;color:#166534}.ch2.wt{background:#fef3c7;color:#92400e}
+.nt2{background:#FFF4E0;color:#92400e;border-radius:16px;padding:12px 14px;font-size:17px;line-height:1.5;margin-bottom:12px}@media (prefers-color-scheme:dark){.nt2{background:#3a2c10;color:#ffd58a}}
 .box{border-radius:22px;padding:14px 18px;margin-bottom:14px;font-size:19px}
 .box.row{display:flex;justify-content:space-between;gap:10px}
 .box .l{color:var(--sub)}
@@ -119,6 +123,7 @@ const DEMO_MASTER = {
     {yard:"HHI",yardName:"HHI",hull:"8123",owner:"",name:"윈치",code:"",serial:""},
     {yard:"HHI",yardName:"HHI",hull:"8124",owner:"",name:"크레인",code:"",serial:""},
     {yard:"SHI",yardName:"SHI",hull:"2201",owner:"",name:"크레인",code:"",serial:""}],
+  inspItems:[{type:"성능검사",name:"DAVIT ARM"},{type:"성능검사",name:"HYD. POWER UNIT"},{type:"출하검사",name:"CONTROL PANEL"}],
   workers:[{name:"김직영",affil:"직영",vendor:""},{name:"이직영",affil:"직영",vendor:""},
            {name:"박외주",affil:"외주",vendor:"대한용접"},{name:"정외주",affil:"외주",vendor:"성진기계"}],
   vendors:[{name:"대한용접"},{name:"성진기계"}],
@@ -182,7 +187,7 @@ async function loadMaster(){
     const res = await apiGet({ action:"master", pin:getPin() });
     if(res.error === "unauthorized"){ LS.set("wl_pin",""); view = "pin"; msg = "접근코드가 올바르지 않습니다."; return false; }
     if(res.error){ msg = res.error; }
-    else { master = res; getOps().forEach(o => applyOp(master, o)); saveMaster(); return true; }
+    else { master = res; master.inspItems = master.inspItems || []; getOps().forEach(o => applyOp(master, o)); saveMaster(); return true; }
   }catch(e){ /* 오프라인: 캐시 사용 */ }
   return !!master;
 }
@@ -206,13 +211,15 @@ let opsFlushing = false;
 const getOps = () => LS.get("wl_ops", []);
 const saveMaster = () => LS.set("wl_master", master);
 function applyOp(m, o){   // 서버(Code.gs applyItemOps_)와 같은 규칙: 한 구분의 마지막 항목을 지우면 항목명만 비우고 구분은 남긴다
-  m.items = m.items || [];
-  const same = m.items.filter(x => x.type === o.type);
-  const i = m.items.findIndex(x => x.type === o.type && x.name === o.name);
-  if(o.op === "add"){ if(i < 0){ const b = m.items.find(x => x.type === o.type && !x.name); if(b) b.name = o.name; else m.items.push({ type:o.type, name:o.name }); } }
-  else if(o.op === "del"){ if(i >= 0){ if(same.length <= 1) m.items[i].name = ""; else m.items.splice(i,1); } }
+  const key = o.scope === "insp" ? "inspItems" : "items";   // insp: 검사신청의 부품 목록
+  m[key] = m[key] || [];
+  const L = m[key];
+  const same = L.filter(x => x.type === o.type);
+  const i = L.findIndex(x => x.type === o.type && x.name === o.name);
+  if(o.op === "add"){ if(i < 0){ const b = L.find(x => x.type === o.type && !x.name); if(b) b.name = o.name; else L.push({ type:o.type, name:o.name }); } }
+  else if(o.op === "del"){ if(i >= 0){ if(same.length <= 1) L[i].name = ""; else L.splice(i,1); } }
   else if(o.op === "rename" && i >= 0){
-    if(m.items.some(x => x.type === o.type && x.name === o.newName)) m.items.splice(i,1); else m.items[i].name = o.newName;
+    if(L.some(x => x.type === o.type && x.name === o.newName)) L.splice(i,1); else L[i].name = o.newName;
   }
 }
 const workTypes = () => [...new Set(master.items.map(i => i.type).filter(Boolean))];
@@ -328,6 +335,10 @@ function render(){
   if(view === "setup") return renderSetup();
   if(view === "mylogs") return renderLogs();
   if(view === "logdetail") return renderLogDetail();
+  if(view === "iwiz") return renderIStep();
+  if(view === "idone") return renderIDone();
+  if(view === "ilist") return renderIList();
+  if(view === "idetail") return renderIDetail();
   renderStep();
 }
 
@@ -343,7 +354,9 @@ function renderHome(){
       <div style="width:1px;background:var(--line)"></div>
       <div><div style="font-size:15px;color:var(--sub)">작업 시간</div><div style="font-size:30px;font-weight:700">${fmtMin(st.m)}</div></div></div>
     <button class="big p" data-a="new">＋ 새 일지 쓰기</button>
+    <button class="big o" data-a="inew">🔍 검사 신청</button>
     <button class="big g glass" data-a="logs">내가 쓴 일지 보기</button>
+    <button class="big g glass" data-a="ilist">내가 쓴 검사신청 보기</button>
     <p class="center"><button class="lnk" style="color:var(--mut);font-size:16px" data-a="who">${who ? esc(who.name) + "님이 아닌가요? 작성자 변경" : "작성자 선택"}</button></p>`, "");
 }
 
@@ -477,11 +490,12 @@ function partsShown(p, term){
 function renderProjectLists(){
   const el = $("#plist"); if(!el) return;
   const all = master.projects;
+  const C = view === "iwiz" ? IS : S, act = view === "iwiz" ? "ipickproj" : "pickproj";
   let body = "";
   if(q.trim()){
     const list = all.filter(p => projMatches(p, q.trim())).slice(0, 30);
-    body = list.length ? `<div class="grp">${list.map(p => { const pn = partsShown(p, q); return sel(p.yard===S.yard&&p.hull===S.hull&&p.name===S.equip,
-        `data-a="pickproj" data-y="${esc(p.yard)}" data-h="${esc(p.hull)}" data-e="${esc(p.name)}"`,
+    body = list.length ? `<div class="grp">${list.map(p => { const pn = partsShown(p, q); return sel(p.yard===C.yard&&p.hull===C.hull&&p.name===C.equip,
+        `data-a="${act}" data-y="${esc(p.yard)}" data-h="${esc(p.hull)}" data-e="${esc(p.name)}"`,
         `<span class="sq" style="background:var(--selBg)">🚢</span><span class="tx">${esc(p.yard)}-${esc(p.hull)}-${esc(p.name)}${pn.length ? `<small>${pn.map(esc).join(", ")}</small>` : ""}</span>`); }).join("")}</div>`
       : `<p class="sub">해당하는 프로젝트가 없어요.</p>`;
   } else if(!all.length) body = `<p class="sub">등록된 프로젝트가 없어요. 시트의 '프로젝트' 탭을 확인하세요.</p>`;
@@ -635,13 +649,14 @@ function setWho(name, g){
   LS.set("wl_who", who); sg = ""; view = "home"; render(); loadMyLogs();
 }
 const w0 = x => x.affil !== "외주";
-const NAV_LOCK = ["logopen","pick","pickproj","toggle","preset","goto","new","nextjob","setwho"];
+const NAV_LOCK = ["logopen","pick","pickproj","toggle","preset","goto","new","nextjob","setwho","inew","ilist","iopen","ipick","ipickproj","igoto","inewagain"];
+const REPEAT_OK = ["iqty"];
 document.addEventListener("click", async e => {
   const t = e.target.closest("[data-a]"); if(!t) return;
   const a = t.dataset.a, v = t.dataset.v, f = t.dataset.f;
   // 중복 터치 방지: 같은 버튼 연타, 화면 전환 직후 겹친 터치는 무시
   const now = Date.now(), key = [a, f, v, t.dataset.y, t.dataset.h, t.dataset.e].join("|");
-  if(key === lastKey && now - lastAt < 400) return;
+  if(key === lastKey && now - lastAt < 400 && !REPEAT_OK.includes(a)) return;
   if(NAV_LOCK.includes(a) && now - navAt < 400) return;
   lastKey = key; lastAt = now;
   switch(a){
@@ -681,6 +696,7 @@ document.addEventListener("click", async e => {
       const val = ($("#pin").value || "").trim(); if(!val) break;
       LS.set("wl_pin", val); msg = ""; view = "home"; show(`<h1>확인 중…</h1>`, "");
       await loadMaster(); if(view !== "pin") view = who ? "home" : "setup"; render(); loadMyLogs(); break; }
+    default: inspAction(a, v, t);
   }
 });
 
@@ -693,6 +709,13 @@ document.addEventListener("change", async e => {
   if(id === "datepick" && e.target.value){ S.date = e.target.value; editDate = false; saveDraft(); render(); loadMyLogs(); }
   if(id === "tstart"){ S.start = e.target.value; if(S.end && S.start && toMin(S.end) <= toMin(S.start)) S.end = ""; saveDraft(); render(); }
   if(id === "tend"){ S.end = e.target.value; saveDraft(); render(); }
+  if(id === "idate"){
+    const v = e.target.value;
+    if(v && v < tomorrow()){ IS.reqDate = ""; iMsg = "오늘 날짜는 고를 수 없어요. 내일부터 고르세요."; }
+    else { IS.reqDate = v; iMsg = ""; }
+    render();
+  }
+  if(id === "itime"){ IS.reqTime = e.target.value; }
   if(id === "photoin"){
     for(const file of [...e.target.files]){
       if(S.photos.length >= CONFIG.PHOTO.max) break;
@@ -713,8 +736,216 @@ document.addEventListener("keydown", e => {
     setWho(val, g);
   }
   else if(id === "additem"){ addMasterItem(val); }
+  else if(id === "addinsp"){ inspAddPart(val); }
 });
 window.addEventListener("online", () => { flushOps(); flushQueue(); });
+
+
+/* =====================================================================
+   검사신청 (성능검사 / 출하검사)
+   ===================================================================== */
+const INSP_CHECKS = {"perf": [{"title": "조립 및 설치", "items": [["전원계통의 버스바 및 연결단자는 명확히 표시되도록 배치하였는가?", "교류계통 : R(흑), S(백), T(적), 직류계통 : 양극(적), 음극(흑)"], ["볼트와 너트 및 그리스 니쁠은 적절한 재질로 사용되었는가?", "볼트,너트 : M12이하(STS316), M12초과(용융 도금된 아연탄소강(A307,A325)", "그리스니쁠 : PT 1/8인치 볼 타입(STS316)"], ["그리스 주입이 용이하도록 니쁠 설치부위에 “G” 마킹이 되어있는가?", "그리스 주입 매뉴얼 명판은 부착하였는가?"], ["압력게이지는 안전하게 사용할수 있도록 안전범위를 구분하였는가?", "사용하중 : 녹색, 그 외 : 적색"], ["부품 식별이 가능하도록 명판이 부착되어 있는가?"], ["BOLT 체결부에 방청유(RP960)가 도포 되었는가?"], ["HYD.TEST(WORKING PRESSUREX1.5) 후 오일 누유가 발생되었는가?"], ["그외 특수 요구조건이 반영되어 있는가?"]]}, {"title": "HSE", "items": [["TEST AREA 안전통제는 적절(Fence설치,출입통제)하며 보호구를 착용하였가?"], ["고정용 BOLT, PIN의 체결상태는 정상이며, 누락된 곳은 없는가?"], ["달기구(Shackle,wire rope,hook, etc)류의 상태는 정상이며, 정격하중에 적합한 제품을 사용하는가?"], ["Operating은 유자격자(숙련자)에 의해 이루어지며 통제요원은 있는가?"], ["전기감전 유발요인은 없는가?"], ["TEST 절차 및 작업안전준수사항을 인지하고 있는가?"]]}, {"title": "성능", "items": [["TEST용 WEIGHT는 준비하였는가? (와이어로프 포함)"], ["TEST용 JIG는 정확히 고정이 되었는가 (필요 시 앙카링, 용접 실시)"], ["PAINT 소손부위는 파워브러싱후 도장하였는가?", "(BURN DAMAGE부위는 최소반경 300mm이상 파워브러싱 할것)"], ["기계 및 구동장치부 기름주입 유무 및 그리스 니플 누락 여부는 확인하였는가?"], ["작동 LINE, 작동 기계부 상호 간섭부위는 없는가?"], ["각종 휠 및 핀등은 얼라이먼트는 맞는가?"], ["DWG.과 비교하여 부품 누락부는 없는가?", "(가종 구매품 - 전기, 유압, SPARE PART등..포함)"], ["SERIES 호선이라면 이전호선의 고객COMMENT는 확인 후 반영하였는가?"], ["제품의 성능은 DWG. SPEC을 만족하는가? (REPORT 유첨 할것.)"]]}], "ship": [{"title": "확인 사항", "items": [["검사 Comment 는 전부 처리 되었는가?"], ["도면에 맞게 조립 및 설치 되었는가? (방향 확인)"], ["도장은 Repair 되어 완료되었는가?"], ["화기작업 부위는 전처리 후 도장 되었는가?"], ["각종 명판은 부착 되었는가?"], ["GREASE NIPPLE 재질 확인, CAP 설치 하였는가?(재질 : TYPE: )"], ["GEAR 및 WIRE부에 GREASE 도포 되었는가?"], ["CABLE 및 WIRE에 도장 오염은 제거 되었는가?"], ["PANEL 내부 청결 상태확인 및 접지는 되었는가?외부 포장상태는 적절한가?"], ["유압라인에 기름 누유부는 없는가?"], ["오일 주유구 GASKET의 손상이 없는 가?"], ["포장 상태는 양호한가?"]]}]};
+const INSP = { perf:{ label:"성능검사", sub:"성능 검사용 (특수선)", icon:"⚙️", color:"#FF9500" }, ship:{ label:"출하검사", sub:"출하 검사용", icon:"📦", color:"#34C759" } };
+const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); };
+const dow = s => "일월화수목금토"[new Date(s + "T00:00:00").getDay()];
+function freshInsp(){
+  const r = LS.get("wl_recent", [])[0];
+  return { type:"", yard:r ? r.yard : "", hull:r ? r.hull : "", equip:r ? r.equip : "", parts:{}, reqDate:"", reqTime:"10:00", checks:{}, step:"itype", clientId: uid() };
+}
+let IS = freshInsp(), iManage = false, iMsg = "", idetailId = "", idoneInfo = null, ibusy = false;
+const getIlogs = () => LS.get("wl_ilogs", []);
+const iSecs = () => IS.type ? INSP_CHECKS[IS.type] : [];
+const iSteps = () => ["itype","iproject","iparts","idate"].concat(iSecs().map((_, k) => "ichk" + k), ["iconfirm"]);
+const iTitle = id => id.startsWith("ichk") ? `확인 사항 ${Number(id.slice(4)) + 1}/${iSecs().length}` : ({ itype:"검사 종류", iproject:"프로젝트", iparts:"검사 부품", idate:"검사 일시", iconfirm:"확인" })[id];
+const iTab = () => INSP[IS.type].label;   // 시트 '검사항목' 탭의 검사구분 이름
+const iProjLabel = () => `${IS.yard}-${IS.hull}-${IS.equip}`;
+function iPartsName(){
+  const p = (master.projects || []).find(x => x.yard === IS.yard && x.hull === IS.hull && x.name === IS.equip);
+  return p && p.parts ? p.parts.join(", ") : "";
+}
+function iCheckCount(){
+  let n = 0, t = 0;
+  iSecs().forEach((sec, k) => sec.items.forEach((_, j) => { t++; if(IS.checks[k + "-" + j]) n++; }));
+  return { n, t };
+}
+function iValid(id){
+  if(id === "itype") return !!IS.type;
+  if(id === "iproject") return !!(IS.yard && IS.hull && IS.equip);
+  if(id === "iparts") return Object.keys(IS.parts).length > 0;
+  if(id === "idate") return !!(IS.reqDate && IS.reqDate >= tomorrow() && IS.reqTime);
+  return true;
+}
+function inav(i, total){
+  return `<div class="nav"><button class="back" data-a="iprev">‹ 이전</button><span>${i + 1} / ${total} · ${iTitle(iSteps()[i])}</span><span class="sp"></span></div>
+    <div class="cap">${Array.from({ length:total }, (_, k) => `<i class="${k <= i ? "on" : ""}"></i>`).join("")}</div>`;
+}
+function renderIStep(){
+  const steps = iSteps(); if(!steps.includes(IS.step)) IS.step = steps[0];
+  const i = steps.indexOf(IS.step), last = IS.step === "iconfirm";
+  const dock = `<button class="pv glass" data-a="iprev">이전</button>` + (last
+    ? `<button class="nx" style="background:#FF9500" data-a="isubmit" ${ibusy ? "disabled" : ""}>${ibusy ? "신청 중… (잠시만요)" : "검사 신청하기"}</button>`
+    : `<button class="nx" data-a="inext" ${iValid(IS.step) ? "" : "disabled"}>다음</button>`);
+  show(inav(i, steps.length) + ISTEP(IS.step), dock);
+  if(IS.step === "iproject") renderProjectLists();
+}
+function ISTEP(id){
+  if(id === "itype") return `<h1>어떤 검사인가요?</h1><p class="sub">하나만 고르세요.</p><div class="grp">${Object.keys(INSP).map(k =>
+      sel(IS.type === k, `data-a="ipick" data-v="${k}"`, `<span class="sq" style="background:${INSP[k].color}33">${INSP[k].icon}</span><span class="tx">${INSP[k].label}<small>${INSP[k].sub}</small></span>`)).join("")}</div>`;
+  if(id === "iproject"){
+    const rec = LS.get("wl_recent", []).slice(0, 3);
+    const rows = rec.map((r, k) => ({ yard:r.yard, hull:r.hull, equip:r.equip, tag: k === 0 ? "방금 쓴 프로젝트" : "최근 사용" }));
+    if(IS.equip && !rows.some(r => r.yard === IS.yard && r.hull === IS.hull && r.equip === IS.equip)) rows.unshift({ yard:IS.yard, hull:IS.hull, equip:IS.equip, tag:"선택한 프로젝트" });
+    return `<h1>어느 프로젝트인가요?</h1><p class="sub">${rows.length ? "최근 작업한 순서예요." : "아래에서 검색해 고르세요."}</p>
+      ${rows.length ? `<div class="grp">${rows.map(r => sel(r.yard === IS.yard && r.hull === IS.hull && r.equip === IS.equip,
+          `data-a="ipickproj" data-y="${esc(r.yard)}" data-h="${esc(r.hull)}" data-e="${esc(r.equip)}"`,
+          `<span class="sq" style="background:var(--selBg)">🚢</span><span class="tx">${esc(r.yard)}-${esc(r.hull)}-${esc(r.equip)}<small>${r.tag}</small></span>`)).join("")}</div>` : ""}
+      <input type="text" id="q" placeholder="🔍 다른 프로젝트 검색 (호선, 장비, 품명)" value="${esc(q)}" style="margin-bottom:6px">
+      <div id="plist"></div>`;
+  }
+  if(id === "iparts"){
+    const list = (master.inspItems || []).filter(x => x.type === iTab() && x.name).map(x => x.name);
+    Object.keys(IS.parts).forEach(n => { if(!list.includes(n)) list.push(n); });
+    return `<h1>어떤 부품을 검사받나요?</h1><p class="sub">${esc(iTab())} · 해당하는 것을 모두 누르세요.</p>
+      ${list.length ? "" : `<p class="sub">아래에 부품명을 입력해 추가하세요. 한 번 추가하면 다음부터 목록에서 고를 수 있어요.</p>`}
+      <div class="grp">${list.map(n => {
+        if(iManage) return `<div class="it"><span class="tx">${esc(n)}</span><button class="ib" data-a="iedit" data-v="${esc(n)}" aria-label="수정">✏️</button><button class="ib" data-a="idel" data-v="${esc(n)}" aria-label="삭제">🗑️</button></div>`;
+        const on = n in IS.parts;
+        return `<div class="it ${on ? "sel" : ""}"><button class="tx tb" data-a="itoggle" data-v="${esc(n)}">${esc(n)}</button>${on ? `<span class="qt"><button data-a="iqty" data-v="${esc(n)}" data-d="-1" aria-label="줄이기">−</button><span>${IS.parts[n]}</span><button data-a="iqty" data-v="${esc(n)}" data-d="1" aria-label="늘리기">＋</button></span>` : ""}<span class="ck"></span></div>`;
+      }).join("")}</div>
+      <div style="display:flex;gap:8px"><input type="text" id="addinsp" placeholder="새 부품명 입력" style="margin:0"><button class="nx" style="flex:none;width:92px;height:58px;border-radius:16px;border:0;background:var(--blue);color:#fff;font-size:18px;font-weight:600" data-a="iaddbtn">추가</button></div>
+      <button class="lnk" style="margin-top:10px" data-a="imanage">${iManage ? "수정 · 삭제 끝내기" : "부품 수정 · 삭제"}</button>`;
+  }
+  if(id === "idate"){
+    const opts = []; for(let m = 5*60; m <= 23*60 + 30; m += 30){ const t = pad(Math.floor(m/60)) + ":" + pad(m % 60); opts.push(`<option value="${t}" ${t === IS.reqTime ? "selected" : ""}>${t}</option>`); }
+    return `<h1>언제 검사받고 싶나요?</h1><p class="sub">검사 요구 날짜와 시간을 고르세요.</p>
+      <div class="nt2"><b>검사는 신청 다음 날부터 받을 수 있어요.</b><br>오늘(${today().slice(5).replace("-", "/")}) 날짜는 고를 수 없어요. 가장 빠른 날은 내일(${tomorrow().slice(5).replace("-", "/")})이에요.</div>
+      <p class="sub" style="margin:0 4px 4px">날짜</p><input type="date" id="idate" min="${tomorrow()}" value="${esc(IS.reqDate)}">
+      <p class="sub" style="margin:0 4px 4px">시간 (30분 단위)</p><select id="itime">${opts.join("")}</select>
+      ${iMsg ? `<div class="err">${esc(iMsg)}</div>` : ""}`;
+  }
+  if(id.startsWith("ichk")){
+    const k = Number(id.slice(4)), sec = iSecs()[k];
+    const all = sec.items.every((_, j) => IS.checks[k + "-" + j]);
+    return `<h1>${esc(sec.title)}</h1><p class="sub">확인한 것을 눌러 체크하세요. 체크하지 않아도 신청할 수 있어요.</p>
+      <button class="big g glass" style="height:52px;font-size:19px" data-a="icheckall" data-v="${k}">${all ? "모두 해제" : "모두 확인했어요"}</button>
+      <div class="grp">${sec.items.map((lines, j) => sel(!!IS.checks[k + "-" + j], `data-a="icheck" data-v="${k}-${j}"`,
+        `<span class="tx" style="font-size:18px">${esc(lines[0])}${lines.slice(1).map(l => `<small>${esc(l)}</small>`).join("")}</span>`)).join("")}</div>`;
+  }
+  // iconfirm
+  const row = (k, label, v) => `<button class="it" data-a="igoto" data-v="${k}"><span class="k">${label}</span><span class="v" style="white-space:pre-wrap">${esc(v) || "-"}</span></button>`;
+  const cc = iCheckCount();
+  return `<h1>이대로 신청할까요?</h1><p class="sub">고칠 곳을 누르면 돌아가요.</p>
+    <div class="grp sum">${row("itype", "검사 종류", IS.type ? INSP[IS.type].label : "")}${row("iproject", "프로젝트", iProjLabel())}${row("iproject", "품명", iPartsName())}
+      ${row("iparts", "검사 부품", Object.keys(IS.parts).map(n => `${n} × ${IS.parts[n]}`).join("\n"))}
+      ${row("idate", "검사 요구", IS.reqDate ? `${IS.reqDate} (${dow(IS.reqDate)}) ${IS.reqTime}` : "")}
+      ${row("ichk0", "확인 사항", cc.n === cc.t ? "모두 확인함" : `${cc.t}개 중 ${cc.n}개 확인`)}</div>
+    <p class="note">신청하면 검사신청서 PDF가 지정된 메일로 발송돼요.</p>${iMsg ? `<div class="err">${esc(iMsg)}</div>` : ""}`;
+}
+
+/* ---------- 신청 / 목록 ---------- */
+async function loadMyInsp(){
+  if(!CONFIG.API_URL || !navigator.onLine || !who) return;
+  try{
+    const r = await apiGet({ action:"myinsp", pin:getPin(), writer:who.name });
+    if(r.items){
+      LS.set("wl_ilogs", getIlogs().filter(l => l.writer !== who.name).concat(r.items));
+      if(["ilist","idetail"].includes(view)) render();
+    }
+  }catch(e){}
+}
+function iPayload(){
+  return { pin:getPin(), action:"insp", clientId:IS.clientId, type:IS.type, writer:who.name, affil:who.affil, vendor:who.affil === "외주" ? (who.vendor || "") : "",
+    yard:IS.yard, hull:IS.hull, equip:IS.equip, pn:iPartsName(), parts:Object.keys(IS.parts).map(n => ({ name:n, qty:IS.parts[n] })),
+    reqDate:IS.reqDate, reqTime:IS.reqTime, checks:iSecs().map((sec, k) => sec.items.map((_, j) => IS.checks[k + "-" + j] ? 1 : 0)) };
+}
+function iRemember(){
+  const r = LS.get("wl_recent", []).filter(x => !(x.yard === IS.yard && x.hull === IS.hull && x.equip === IS.equip));
+  r.unshift({ yard:IS.yard, hull:IS.hull, equip:IS.equip }); LS.set("wl_recent", r.slice(0, CONFIG.RECENT_MAX));
+}
+async function isubmit(){
+  if(ibusy) return;
+  const bad = iSteps().slice(0, -1).find(x => !iValid(x));
+  if(bad){ iMsg = `"${iTitle(bad)}" 항목을 확인하세요.`; IS.step = bad; return render(); }
+  ibusy = true; iMsg = ""; render();
+  const p = iPayload();
+  if(!CONFIG.API_URL){ ibusy = false; iRemember(); idoneInfo = { id:"PT-" + today().replace(/-/g, "") + "-01 (데모)", mail:"발송완료" }; view = "idone"; return render(); }
+  let res;
+  try{ res = await apiPost(p); }
+  catch(e){ ibusy = false; iMsg = "연결이 불안정해요. 잠시 후 [검사 신청하기]를 다시 눌러 주세요. (중복으로 접수되지 않아요)"; return render(); }
+  ibusy = false;
+  if(res && res.ok){ iRemember(); idoneInfo = res; view = "idone"; navAt = Date.now(); render(); $("#main").scrollTop = 0; loadMyInsp(); return; }
+  if(res && res.error === "unauthorized"){ view = "pin"; msg = "접근코드를 다시 입력하세요."; return render(); }
+  if(res && res.error === "date"){ iMsg = "검사 요구일은 내일부터 고를 수 있어요."; IS.reqDate = ""; IS.step = "idate"; return render(); }
+  iMsg = "신청 실패: " + ((res && res.error) || "알 수 없는 오류"); render();
+}
+function renderIDone(){
+  const ok = idoneInfo && idoneInfo.mail === "발송완료";
+  show(`<div class="center" style="padding-top:60px"><div style="font-size:84px">✅</div>
+      <h1 style="text-align:center;font-size:30px">신청했어요</h1>
+      <p class="sub">관리번호 <b>${esc(idoneInfo.id)}</b></p>
+      <div class="glass box" style="margin:14px 0;font-size:18px;text-align:left">${ok ? `<span class="ch2 ok">PDF 발송 완료</span><div style="margin-top:8px;color:var(--sub)">신청서 PDF를 지정된 메일로 보냈어요.</div>`
+        : `<span class="ch2 wt">${esc((idoneInfo && idoneInfo.mail) || "처리 중")}</span><div style="margin-top:8px;color:var(--sub)">신청은 접수됐어요. PDF 메일은 자동으로 다시 보내요.</div>`}</div></div>
+    <div style="margin-top:20px"><button class="big o" data-a="inewagain">다음 검사 신청</button><button class="big g glass" data-a="home">홈으로</button></div>`, "");
+}
+function renderIList(){
+  const mine = getIlogs().filter(l => who && l.writer === who.name);
+  let lastDate = "";
+  const html = mine.map(l => {
+    const head = l.date !== lastDate ? `<p class="sub" style="margin:14px 4px 6px;font-weight:600">${esc(l.date)}</p>` : ""; lastDate = l.date;
+    return head + `<div class="grp" style="margin-bottom:8px"><button class="it" style="display:block" data-a="iopen" data-v="${esc(l.id)}"><div style="font-weight:600">${esc(l.id)} <span class="ch2 ${l.status === "발송완료" ? "ok" : "wt"}" style="font-size:13px">${esc(l.status)}</span></div>
+      <small>${esc(l.yard)}-${esc(l.hull)}-${esc(l.equip)} · ${esc(l.type)}</small><div style="font-size:16px;color:var(--sub)">검사 요구 ${esc(l.req)}</div></button></div>`;
+  }).join("");
+  show(`<div class="nav"><button class="back" data-a="home">‹ 홈</button><span></span><span class="sp"></span></div>
+    <h1>내가 쓴 검사신청</h1><p class="sub">누르면 자세히 볼 수 있어요. (수정은 할 수 없어요)</p>${html || `<p class="sub">검사신청 내역이 없어요.</p>`}`, "");
+}
+function renderIDetail(){
+  const l = getIlogs().find(x => x.id === idetailId);
+  if(!l){ view = "ilist"; return renderIList(); }
+  const row = (k, v) => `<div class="it" style="min-height:56px;font-size:18px;align-items:flex-start;padding:12px 16px"><span class="k" style="width:86px;flex:none;color:var(--sub);font-size:16px">${k}</span><span style="flex:1;word-break:break-all;white-space:pre-wrap;text-align:right">${esc(v) || "-"}</span></div>`;
+  show(`<div class="nav"><button class="back" data-a="ilist">‹ 목록</button><span></span><span class="sp"></span></div>
+    <h1>검사신청 보기</h1><p class="sub">${esc(l.id)} <span class="ch2 ${l.status === "발송완료" ? "ok" : "wt"}" style="font-size:13px">${esc(l.status)}</span></p>
+    <div class="grp">${row("검사 종류", l.type)}${row("프로젝트", `${l.yard}-${l.hull}-${l.equip}`)}${row("품명", l.pn)}${row("신청일", l.date)}${row("검사 요구", l.req)}${row("검사 부품", String(l.parts).split(", ").join("\n"))}${row("확인 사항", l.checks ? l.checks + " 확인" : "")}</div>
+    ${l.pdf ? `<a class="big g glass" style="text-decoration:none" href="${esc(l.pdf)}" target="_blank" rel="noopener">PDF 신청서 열기</a>` : ""}
+    <p class="note">제출한 검사신청은 앱에서 고칠 수 없어요. 수정이 필요하면 담당자에게 알려 주세요.</p>`, "");
+}
+
+/* ---------- 부품(검사항목) 관리 ---------- */
+function inspAddPart(name){
+  name = (name || "").trim(); if(!name || !IS.type) return;
+  itemOp({ scope:"insp", op:"add", type:iTab(), name });
+  if(!(name in IS.parts)) IS.parts[name] = 1;
+  render();
+}
+
+/* ---------- 이벤트 ---------- */
+function ijump(){ navAt = Date.now(); render(); $("#main").scrollTop = 0; }
+function inspAction(a, v, t){
+  switch(a){
+    case "inew": IS = freshInsp(); iMsg = ""; iManage = false; q = ""; view = "iwiz"; ijump(); loadMyInsp(); break;
+    case "inewagain": { const keep = { yard:IS.yard, hull:IS.hull, equip:IS.equip }; IS = Object.assign(freshInsp(), keep); iMsg = ""; iManage = false; q = ""; view = "iwiz"; ijump(); break; }
+    case "ilist": view = "ilist"; ijump(); loadMyInsp(); break;
+    case "iopen": idetailId = v; view = "idetail"; ijump(); break;
+    case "ipick": if(IS.type !== v){ IS.type = v; IS.parts = {}; IS.checks = {}; } render(); break;
+    case "ipickproj": IS.yard = t.dataset.y; IS.hull = t.dataset.h; IS.equip = t.dataset.e; render(); break;
+    case "itoggle": if(v in IS.parts) delete IS.parts[v]; else IS.parts[v] = 1; render(); break;
+    case "iqty": { const n = (IS.parts[v] || 1) + Number(t.dataset.d); IS.parts[v] = Math.max(1, Math.min(99, n)); render(); break; }
+    case "imanage": iManage = !iManage; render(); break;
+    case "iaddbtn": inspAddPart($("#addinsp").value); break;
+    case "iedit": {
+      const nn = (prompt("부품명 수정", v) || "").trim(); if(!nn || nn === v) break;
+      itemOp({ scope:"insp", op:"rename", type:iTab(), name:v, newName:nn });
+      if(v in IS.parts){ IS.parts[nn] = IS.parts[v]; delete IS.parts[v]; } render(); break; }
+    case "idel":
+      if(!confirm(`"${v}" 부품을 삭제할까요?\n(모든 작업자의 목록에서 사라집니다)`)) break;
+      itemOp({ scope:"insp", op:"del", type:iTab(), name:v }); delete IS.parts[v]; render(); break;
+    case "icheck": IS.checks[v] = !IS.checks[v]; render(); break;
+    case "icheckall": { const k = Number(v), sec = iSecs()[k], all = sec.items.every((_, j) => IS.checks[k + "-" + j]); sec.items.forEach((_, j) => { IS.checks[k + "-" + j] = !all; }); render(); break; }
+    case "inext": { const s = iSteps(), i = s.indexOf(IS.step); if(iValid(IS.step)){ IS.step = s[Math.min(i + 1, s.length - 1)]; iMsg = ""; ijump(); } break; }
+    case "iprev": { const s = iSteps(), i = s.indexOf(IS.step); if(i <= 0){ view = "home"; } else IS.step = s[i - 1]; iMsg = ""; ijump(); break; }
+    case "igoto": IS.step = v; iMsg = ""; ijump(); break;
+    case "isubmit": isubmit(); break;
+  }
+}
 
 /* =====================================================================
    시작
