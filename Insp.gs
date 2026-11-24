@@ -18,6 +18,7 @@ var INSP_MAIL_SEED = "erai77@techflower.co.kr";
 var INSP_HEADERS = ["관리번호", "신청시각", "신청일자", "작성자", "검사구분", "조선소", "호선", "장비명", "품명",
   "검사요구일시", "부품내역", "확인사항", "PDF링크", "발송상태", "클라이언트ID", "요청원본"];
 var INSP_TZ = "Asia/Seoul";
+var INSP_LOGO_ID = "12h-FOWYJbVQPB0hZWxuxDP-ETpgvvN8W";   // 드라이브의 '검사신청서_로고.png' (PDF 뷰어에서 로고가 사라지는 문제를 막으려고 PNG로 다시 넣는다)
 
 /* ---------- 설치 ---------- */
 function setupInsp() {
@@ -215,7 +216,23 @@ function setAfterLabel_(table, label, text) {
   return false;
 }
 
+// 틀에 들어 있는 JPEG 로고를 PNG로 바꿔 넣는다. 실패하면 기존 로고를 그대로 둔다.
+function swapLogo_(doc) {
+  try {
+    var found = doc.getBody().findElement(DocumentApp.ElementType.INLINE_IMAGE);
+    if (!found) return;
+    var img = found.getElement().asInlineImage();
+    var par = img.getParent().asParagraph();
+    var idx = par.getChildIndex(img), w = img.getWidth(), h = img.getHeight();
+    var blob = DriveApp.getFileById(INSP_LOGO_ID).getBlob();
+    var ni = par.insertInlineImage(idx, blob);
+    ni.setWidth(w).setHeight(h);
+    img.removeFromParent();
+  } catch (e) { Logger.log("로고 교체 실패(기존 로고 유지): " + e); }
+}
+
 function fillInspDoc_(doc, d) {
+  swapLogo_(doc);
   var T = doc.getBody().getTables();
   var head = T[0];
   setAfterLabel_(head, "호선번호", d.yard + "-" + d.hull + "-" + d.equip);
