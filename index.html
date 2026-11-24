@@ -58,9 +58,16 @@ textarea{min-height:150px;resize:vertical}
 .big.p{background:var(--blue);color:#fff}.big.g{color:var(--blue)}.big.o{background:#FF9500;color:#fff}
 .it .qt{display:flex;align-items:center;gap:6px;font-size:20px;font-weight:600}.it .qt button{width:36px;height:36px;border-radius:18px;border:0;background:var(--line);font-size:20px;font-weight:700;color:var(--fg)}
 .it .tx.tb{background:none;border:0;font:inherit;color:inherit;text-align:left;padding:0;min-height:50px}
-.calbar{display:flex;align-items:center;justify-content:space-between;margin:2px 0 6px}.calbar b{font-size:19px}.calbar button{width:46px;height:40px;border-radius:12px;border:0;background:var(--line);font-size:24px;color:var(--fg)}.calbar button:disabled{opacity:.35}
-.cal2{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:12px}.cal2 .wd{text-align:center;font-size:14px;color:var(--mut);padding:2px 0}
-.cd2{height:54px;border-radius:12px;border:0;background:var(--card);color:var(--fg);font-size:19px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}.cd2 small{font-size:11px;font-weight:400;color:var(--mut)}.cd2:disabled{background:none;color:var(--mut);opacity:.5;font-weight:400}.cd2.tom{box-shadow:inset 0 0 0 2px #FF9500}.cd2.sel{background:var(--blue);color:#fff}.cd2.sel small{color:#fff}
+.calc{background:var(--card);border-radius:22px;padding:12px 10px 10px;margin-bottom:12px}
+.calbar{display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px}.calbar b{font-size:17px;font-weight:600}
+.calbar button{width:40px;height:34px;border-radius:17px;border:0;background:var(--selBg);color:var(--blue);font-size:22px;line-height:1}.calbar button:disabled{opacity:.3}
+.cal2{display:grid;grid-template-columns:repeat(7,1fr);gap:4px 2px}.cal2 .wd{text-align:center;font-size:13px;color:var(--mut);padding-bottom:2px}.cal2 .wd:first-child{color:#FF3B30}.cal2 .wd:nth-child(7){color:var(--blue)}
+.cd2{height:52px;border-radius:26px;border:0;background:none;color:var(--fg);font-size:19px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;position:relative}
+.cd2.su{color:#FF3B30}.cd2.sa{color:var(--blue)}.cd2 small{font-size:10.5px;font-weight:500;color:var(--mut);margin-top:-1px}
+.cd2:disabled{opacity:.3;font-weight:400}.cd2.tom small{color:#FF9500;font-weight:700}
+.cd2.sel{background:var(--blue);color:#fff;box-shadow:0 4px 12px rgba(0,122,255,.35)}.cd2.sel small{color:#fff}
+.trow{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card);border-radius:22px;padding:8px 16px}.trow span{font-size:19px;font-weight:600}.trow select{width:auto;min-width:130px;margin:0;border:0;background:var(--selBg);color:var(--blue);font-weight:600;text-align:center}
+.nt3{display:flex;gap:10px;align-items:center;background:#FFF4E0;color:#8a4b00;border-radius:16px;padding:10px 14px;font-size:16px;line-height:1.4;margin-bottom:12px}.nt3 i{font-style:normal;font-size:22px}@media (prefers-color-scheme:dark){.nt3{background:#3a2c10;color:#ffd58a}}
 .ch2{display:inline-block;font-size:14px;padding:2px 10px;border-radius:12px;font-weight:600;white-space:nowrap}.ch2.ok{background:#dcfce7;color:#166534}.ch2.wt{background:#fef3c7;color:#92400e}
 .nt2{background:#FFF4E0;color:#92400e;border-radius:16px;padding:12px 14px;font-size:17px;line-height:1.5;margin-bottom:12px}@media (prefers-color-scheme:dark){.nt2{background:#3a2c10;color:#ffd58a}}
 .box{border-radius:22px;padding:14px 18px;margin-bottom:14px;font-size:19px}
@@ -718,7 +725,7 @@ document.addEventListener("change", async e => {
     else { IS.reqDate = v; iMsg = ""; }
     render();
   }
-  if(id === "itime"){ IS.reqTime = e.target.value; }
+  if(id === "itime"){ IS.reqTime = e.target.value; render(); }
   if(id === "photoin"){
     for(const file of [...e.target.files]){
       if(S.photos.length >= CONFIG.PHOTO.max) break;
@@ -792,18 +799,19 @@ function renderIStep(){
   if(IS.step === "iproject") renderProjectLists();
 }
 function renderCal(){
-  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
-  const start = new Date(t0); start.setDate(start.getDate() - start.getDay() + iCalOff * 35);   // 일요일부터 5주
   const tom = tomorrow(), tod = today(), cells = [];
-  for(let k = 0; k < 35; k++){
+  const t = new Date(tom + "T00:00:00");
+  const start = new Date(t); start.setDate(t.getDate() - t.getDay() + iCalOff * 7);   // 내일이 든 주의 일요일부터 2주
+  for(let k = 0; k < 14; k++){
     const d = new Date(start); d.setDate(start.getDate() + k);
-    const ds = ymd(d), off = ds < tom, sel = ds === IS.reqDate;
-    cells.push(`<button class="cd2 ${sel ? "sel" : ""} ${ds === tom ? "tom" : ""}" ${off ? "disabled" : `data-a="idpick" data-v="${ds}"`}>${d.getDate() === 1 ? `<small>${d.getMonth() + 1}월</small>` : ""}${d.getDate()}${ds === tod ? `<small>오늘</small>` : ""}</button>`);
+    const ds = ymd(d), off = ds < tom, sel = ds === IS.reqDate, wd = d.getDay();
+    const sub = ds === tod ? "오늘" : ds === tom ? "내일" : d.getDate() === 1 ? `${d.getMonth() + 1}월` : "";
+    cells.push(`<button class="cd2 ${sel ? "sel" : ""} ${ds === tom ? "tom" : ""} ${wd === 0 ? "su" : wd === 6 ? "sa" : ""}" ${off ? "disabled" : `data-a="idpick" data-v="${ds}"`}>${d.getDate()}${sub ? `<small>${sub}</small>` : ""}</button>`);
   }
-  const a = new Date(start), b = new Date(start); b.setDate(b.getDate() + 34);
-  const lab = a.getMonth() === b.getMonth() ? `${a.getFullYear()}년 ${a.getMonth() + 1}월` : `${a.getMonth() + 1}월 ~ ${b.getMonth() + 1}월`;
-  return `<div class="calbar"><button data-a="ical" data-d="-1" ${iCalOff <= 0 ? "disabled" : ""} aria-label="이전">‹</button><b>${lab}</b><button data-a="ical" data-d="1" aria-label="다음">›</button></div>
-    <div class="cal2">${"일월화수목금토".split("").map(x => `<span class="wd">${x}</span>`).join("")}${cells.join("")}</div>`;
+  const b = new Date(start); b.setDate(b.getDate() + 13);
+  const lab = start.getMonth() === b.getMonth() ? `${start.getFullYear()}년 ${start.getMonth() + 1}월` : `${start.getMonth() + 1}월 ${start.getDate()}일 ~ ${b.getMonth() + 1}월 ${b.getDate()}일`;
+  return `<div class="calc"><div class="calbar"><button data-a="ical" data-d="-1" ${iCalOff <= 0 ? "disabled" : ""} aria-label="이전 주">‹</button><b>${lab}</b><button data-a="ical" data-d="1" aria-label="다음 주">›</button></div>
+    <div class="cal2">${"일월화수목금토".split("").map(x => `<span class="wd">${x}</span>`).join("")}${cells.join("")}</div></div>`;
 }
 function ISTEP(id){
   if(id === "itype") return `<h1>어떤 검사인가요?</h1><p class="sub">하나만 고르세요.</p><div class="grp">${Object.keys(INSP).map(k =>
@@ -834,10 +842,12 @@ function ISTEP(id){
   }
   if(id === "idate"){
     const opts = []; for(let m = 5*60; m <= 23*60 + 30; m += 30){ const t = pad(Math.floor(m/60)) + ":" + pad(m % 60); opts.push(`<option value="${t}" ${t === IS.reqTime ? "selected" : ""}>${t}</option>`); }
-    return `<h1>언제 검사받고 싶나요?</h1><p class="sub">검사 요구 날짜와 시간을 고르세요.</p>
-      <div class="nt2"><b>검사는 신청 다음 날부터 받을 수 있어요.</b><br>오늘(${today().slice(5).replace("-", "/")}) 날짜는 고를 수 없어요. 가장 빠른 날은 내일(${tomorrow().slice(5).replace("-", "/")})이에요.</div>
-      <p class="sub" style="margin:0 4px 4px">날짜${IS.reqDate ? ` · <b style="color:var(--fg)">${IS.reqDate.slice(5).replace("-", "/")} (${dow(IS.reqDate)}) 선택</b>` : ""}</p>${renderCal()}
-      <p class="sub" style="margin:0 4px 4px">시간 (30분 단위)</p><select id="itime">${opts.join("")}</select>
+    const f = x => x.slice(5).replace("-", "/");
+    return `<h1>언제 검사받고 싶나요?</h1>
+      <div class="nt3"><i>🗓️</i><span>검사는 <b>내일(${f(tomorrow())})부터</b> 받을 수 있어요.<br>오늘(${f(today())}) 날짜는 고를 수 없어요.</span></div>
+      ${renderCal()}
+      <div class="trow"><span>검사 시간</span><select id="itime">${opts.join("")}</select></div>
+      <p class="note">${IS.reqDate ? `<b>${f(IS.reqDate)} (${dow(IS.reqDate)}) ${IS.reqTime}</b>에 검사를 요청해요.` : "날짜를 눌러 고르세요. 시간은 30분 단위예요."}</p>
       ${iMsg ? `<div class="err">${esc(iMsg)}</div>` : ""}`;
   }
   if(id.startsWith("ichk")){
