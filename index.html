@@ -58,6 +58,9 @@ textarea{min-height:150px;resize:vertical}
 .big.p{background:var(--blue);color:#fff}.big.g{color:var(--blue)}.big.o{background:#FF9500;color:#fff}
 .it .qt{display:flex;align-items:center;gap:6px;font-size:20px;font-weight:600}.it .qt button{width:36px;height:36px;border-radius:18px;border:0;background:var(--line);font-size:20px;font-weight:700;color:var(--fg)}
 .it .tx.tb{background:none;border:0;font:inherit;color:inherit;text-align:left;padding:0;min-height:50px}
+.calbar{display:flex;align-items:center;justify-content:space-between;margin:2px 0 6px}.calbar b{font-size:19px}.calbar button{width:46px;height:40px;border-radius:12px;border:0;background:var(--line);font-size:24px;color:var(--fg)}.calbar button:disabled{opacity:.35}
+.cal2{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:12px}.cal2 .wd{text-align:center;font-size:14px;color:var(--mut);padding:2px 0}
+.cd2{height:54px;border-radius:12px;border:0;background:var(--card);color:var(--fg);font-size:19px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}.cd2 small{font-size:11px;font-weight:400;color:var(--mut)}.cd2:disabled{background:none;color:var(--mut);opacity:.5;font-weight:400}.cd2.tom{box-shadow:inset 0 0 0 2px #FF9500}.cd2.sel{background:var(--blue);color:#fff}.cd2.sel small{color:#fff}
 .ch2{display:inline-block;font-size:14px;padding:2px 10px;border-radius:12px;font-weight:600;white-space:nowrap}.ch2.ok{background:#dcfce7;color:#166534}.ch2.wt{background:#fef3c7;color:#92400e}
 .nt2{background:#FFF4E0;color:#92400e;border-radius:16px;padding:12px 14px;font-size:17px;line-height:1.5;margin-bottom:12px}@media (prefers-color-scheme:dark){.nt2{background:#3a2c10;color:#ffd58a}}
 .box{border-radius:22px;padding:14px 18px;margin-bottom:14px;font-size:19px}
@@ -745,14 +748,14 @@ window.addEventListener("online", () => { flushOps(); flushQueue(); });
    검사신청 (성능검사 / 출하검사)
    ===================================================================== */
 const INSP_CHECKS = {"perf": [{"title": "조립 및 설치", "items": [["전원계통의 버스바 및 연결단자는 명확히 표시되도록 배치하였는가?", "교류계통 : R(흑), S(백), T(적), 직류계통 : 양극(적), 음극(흑)"], ["볼트와 너트 및 그리스 니쁠은 적절한 재질로 사용되었는가?", "볼트,너트 : M12이하(STS316), M12초과(용융 도금된 아연탄소강(A307,A325)", "그리스니쁠 : PT 1/8인치 볼 타입(STS316)"], ["그리스 주입이 용이하도록 니쁠 설치부위에 “G” 마킹이 되어있는가?", "그리스 주입 매뉴얼 명판은 부착하였는가?"], ["압력게이지는 안전하게 사용할수 있도록 안전범위를 구분하였는가?", "사용하중 : 녹색, 그 외 : 적색"], ["부품 식별이 가능하도록 명판이 부착되어 있는가?"], ["BOLT 체결부에 방청유(RP960)가 도포 되었는가?"], ["HYD.TEST(WORKING PRESSUREX1.5) 후 오일 누유가 발생되었는가?"], ["그외 특수 요구조건이 반영되어 있는가?"]]}, {"title": "HSE", "items": [["TEST AREA 안전통제는 적절(Fence설치,출입통제)하며 보호구를 착용하였가?"], ["고정용 BOLT, PIN의 체결상태는 정상이며, 누락된 곳은 없는가?"], ["달기구(Shackle,wire rope,hook, etc)류의 상태는 정상이며, 정격하중에 적합한 제품을 사용하는가?"], ["Operating은 유자격자(숙련자)에 의해 이루어지며 통제요원은 있는가?"], ["전기감전 유발요인은 없는가?"], ["TEST 절차 및 작업안전준수사항을 인지하고 있는가?"]]}, {"title": "성능", "items": [["TEST용 WEIGHT는 준비하였는가? (와이어로프 포함)"], ["TEST용 JIG는 정확히 고정이 되었는가 (필요 시 앙카링, 용접 실시)"], ["PAINT 소손부위는 파워브러싱후 도장하였는가?", "(BURN DAMAGE부위는 최소반경 300mm이상 파워브러싱 할것)"], ["기계 및 구동장치부 기름주입 유무 및 그리스 니플 누락 여부는 확인하였는가?"], ["작동 LINE, 작동 기계부 상호 간섭부위는 없는가?"], ["각종 휠 및 핀등은 얼라이먼트는 맞는가?"], ["DWG.과 비교하여 부품 누락부는 없는가?", "(가종 구매품 - 전기, 유압, SPARE PART등..포함)"], ["SERIES 호선이라면 이전호선의 고객COMMENT는 확인 후 반영하였는가?"], ["제품의 성능은 DWG. SPEC을 만족하는가? (REPORT 유첨 할것.)"]]}], "ship": [{"title": "확인 사항", "items": [["검사 Comment 는 전부 처리 되었는가?"], ["도면에 맞게 조립 및 설치 되었는가? (방향 확인)"], ["도장은 Repair 되어 완료되었는가?"], ["화기작업 부위는 전처리 후 도장 되었는가?"], ["각종 명판은 부착 되었는가?"], ["GREASE NIPPLE 재질 확인, CAP 설치 하였는가?(재질 : TYPE: )"], ["GEAR 및 WIRE부에 GREASE 도포 되었는가?"], ["CABLE 및 WIRE에 도장 오염은 제거 되었는가?"], ["PANEL 내부 청결 상태확인 및 접지는 되었는가?외부 포장상태는 적절한가?"], ["유압라인에 기름 누유부는 없는가?"], ["오일 주유구 GASKET의 손상이 없는 가?"], ["포장 상태는 양호한가?"]]}]};
-const INSP = { perf:{ label:"성능검사", sub:"성능 검사용 (특수선)", icon:"⚙️", color:"#FF9500" }, ship:{ label:"출하검사", sub:"출하 검사용", icon:"📦", color:"#34C759" } };
+const INSP = { perf:{ label:"성능검사", sub:"성능 검사용", icon:"⚙️", color:"#FF9500" }, ship:{ label:"출하검사", sub:"출하 검사용", icon:"📦", color:"#34C759" } };
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); };
 const dow = s => "일월화수목금토"[new Date(s + "T00:00:00").getDay()];
 function freshInsp(){
   const r = LS.get("wl_recent", [])[0];
   return { type:"", yard:r ? r.yard : "", hull:r ? r.hull : "", equip:r ? r.equip : "", parts:{}, reqDate:"", reqTime:"10:00", checks:{}, step:"itype", clientId: uid() };
 }
-let IS = freshInsp(), iManage = false, iMsg = "", idetailId = "", idoneInfo = null, ibusy = false;
+let iCalOff = 0, IS = freshInsp(), iManage = false, iMsg = "", idetailId = "", idoneInfo = null, ibusy = false;
 const getIlogs = () => LS.get("wl_ilogs", []);
 const iSecs = () => IS.type ? INSP_CHECKS[IS.type] : [];
 const iSteps = () => ["itype","iproject","iparts","idate"].concat(iSecs().map((_, k) => "ichk" + k), ["iconfirm"]);
@@ -788,6 +791,20 @@ function renderIStep(){
   show(inav(i, steps.length) + ISTEP(IS.step), dock);
   if(IS.step === "iproject") renderProjectLists();
 }
+function renderCal(){
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  const start = new Date(t0); start.setDate(start.getDate() - start.getDay() + iCalOff * 35);   // 일요일부터 5주
+  const tom = tomorrow(), tod = today(), cells = [];
+  for(let k = 0; k < 35; k++){
+    const d = new Date(start); d.setDate(start.getDate() + k);
+    const ds = ymd(d), off = ds < tom, sel = ds === IS.reqDate;
+    cells.push(`<button class="cd2 ${sel ? "sel" : ""} ${ds === tom ? "tom" : ""}" ${off ? "disabled" : `data-a="idpick" data-v="${ds}"`}>${d.getDate() === 1 ? `<small>${d.getMonth() + 1}월</small>` : ""}${d.getDate()}${ds === tod ? `<small>오늘</small>` : ""}</button>`);
+  }
+  const a = new Date(start), b = new Date(start); b.setDate(b.getDate() + 34);
+  const lab = a.getMonth() === b.getMonth() ? `${a.getFullYear()}년 ${a.getMonth() + 1}월` : `${a.getMonth() + 1}월 ~ ${b.getMonth() + 1}월`;
+  return `<div class="calbar"><button data-a="ical" data-d="-1" ${iCalOff <= 0 ? "disabled" : ""} aria-label="이전">‹</button><b>${lab}</b><button data-a="ical" data-d="1" aria-label="다음">›</button></div>
+    <div class="cal2">${"일월화수목금토".split("").map(x => `<span class="wd">${x}</span>`).join("")}${cells.join("")}</div>`;
+}
 function ISTEP(id){
   if(id === "itype") return `<h1>어떤 검사인가요?</h1><p class="sub">하나만 고르세요.</p><div class="grp">${Object.keys(INSP).map(k =>
       sel(IS.type === k, `data-a="ipick" data-v="${k}"`, `<span class="sq" style="background:${INSP[k].color}33">${INSP[k].icon}</span><span class="tx">${INSP[k].label}<small>${INSP[k].sub}</small></span>`)).join("")}</div>`;
@@ -819,7 +836,7 @@ function ISTEP(id){
     const opts = []; for(let m = 5*60; m <= 23*60 + 30; m += 30){ const t = pad(Math.floor(m/60)) + ":" + pad(m % 60); opts.push(`<option value="${t}" ${t === IS.reqTime ? "selected" : ""}>${t}</option>`); }
     return `<h1>언제 검사받고 싶나요?</h1><p class="sub">검사 요구 날짜와 시간을 고르세요.</p>
       <div class="nt2"><b>검사는 신청 다음 날부터 받을 수 있어요.</b><br>오늘(${today().slice(5).replace("-", "/")}) 날짜는 고를 수 없어요. 가장 빠른 날은 내일(${tomorrow().slice(5).replace("-", "/")})이에요.</div>
-      <p class="sub" style="margin:0 4px 4px">날짜</p><input type="date" id="idate" min="${tomorrow()}" value="${esc(IS.reqDate)}">
+      <p class="sub" style="margin:0 4px 4px">날짜${IS.reqDate ? ` · <b style="color:var(--fg)">${IS.reqDate.slice(5).replace("-", "/")} (${dow(IS.reqDate)}) 선택</b>` : ""}</p>${renderCal()}
       <p class="sub" style="margin:0 4px 4px">시간 (30분 단위)</p><select id="itime">${opts.join("")}</select>
       ${iMsg ? `<div class="err">${esc(iMsg)}</div>` : ""}`;
   }
@@ -921,7 +938,9 @@ function inspAddPart(name){
 function ijump(){ navAt = Date.now(); render(); $("#main").scrollTop = 0; }
 function inspAction(a, v, t){
   switch(a){
-    case "inew": IS = freshInsp(); iMsg = ""; iManage = false; q = ""; view = "iwiz"; ijump(); loadMyInsp(); break;
+    case "idpick": IS.reqDate = v; iMsg = ""; render(); break;
+    case "ical": iCalOff = Math.max(0, iCalOff + Number(t.dataset.d)); render(); break;
+    case "inew": IS = freshInsp(); iCalOff = 0; iMsg = ""; iManage = false; q = ""; view = "iwiz"; ijump(); loadMyInsp(); break;
     case "inewagain": { const keep = { yard:IS.yard, hull:IS.hull, equip:IS.equip }; IS = Object.assign(freshInsp(), keep); iMsg = ""; iManage = false; q = ""; view = "iwiz"; ijump(); break; }
     case "ilist": view = "ilist"; ijump(); loadMyInsp(); break;
     case "iopen": idetailId = v; view = "idetail"; ijump(); break;
