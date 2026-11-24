@@ -1,5 +1,6 @@
 /* =====================================================================
    검사신청: 신청 저장 → 구글 문서 틀에 채워 PDF 생성 → 지정 메일로 발송
+   - PDF는 드라이브에 저장하지 않고 메일 첨부로만 보낸다 (재발송이 필요하면 시트의 요청원본으로 다시 만든다)
    - 틀: 드라이브의 '검사신청서_틀_성능검사', '검사신청서_틀_출하검사' (구글 문서)
    - 이력: 시트 '검사신청' 탭 (한 신청 = 한 줄 = PDF 한 장)
    - 받는 사람: 시트 '검사메일' 탭 A열 (한 줄에 주소 하나)
@@ -27,7 +28,6 @@ function setupInsp() {
     var sh = ss.insertSheet(INSP_ITEM_TAB);
     sh.getRange(1, 1, 1, 2).setValues([["검사구분", "부품명"]]).setFontWeight("bold");
   }
-  inspFolder_();
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === "retryInspMail") ScriptApp.deleteTrigger(t);
   });
@@ -127,19 +127,10 @@ function processInsp_(r) {
   var sh = getInspSheet_();
   var row = sh.getRange(r, 1, 1, INSP_HEADERS.length).getValues()[0].map(String);
   var d = JSON.parse(row[15]);
-  var out = { pdf: row[12], mail: row[13] };
+  var out = { pdf: "", mail: row[13] };
   var blob;
   try {
-    if (!row[12]) {
-      var f = makeInspPdf_(d);
-      var url = f.getUrl();
-      sh.getRange(r, 13).setRichTextValue(SpreadsheetApp.newRichTextValue().setText(url).setLinkUrl(url).build());
-      out.pdf = url;
-      blob = f.getBlob();
-    } else {
-      var m = row[12].match(/\/d\/([^\/?]+)/);
-      blob = DriveApp.getFileById(m[1]).getBlob();
-    }
+    blob = makeInspPdf_(d);   // 드라이브에 저장하지 않고 메일 첨부용으로만 만든다
   } catch (e) {
     Logger.log("PDF 생성 실패: " + e);
     sh.getRange(r, 14).setValue("PDF실패");
@@ -152,9 +143,9 @@ function processInsp_(r) {
     MailApp.sendEmail({
       to: to.join(","),
       subject: inspSubject_(d),
-      htmlBody: inspMailHtml_(d, row, out.pdf),
+      htmlBody: inspMailHtml_(d, row, ""),
       body: inspSubject_(d),
-      attachments: [blob.setName(d.id + ".pdf")],
+      attachments: [blob],
       name: "작업일지"
     });
     sh.getRange(r, 14).setValue("발송완료");
@@ -194,16 +185,12 @@ function inspMailHtml_(d, row, pdfUrl) {
 }
 
 function makeInspPdf_(d) {
-  var folder = inspFolder_();
-  var tmp = DriveApp.getFileById(INSP_TPL[d.type]).makeCopy("tmp_" + d.id, folder);
+  var tmp = DriveApp.getFileById(INSP_TPL[d.type]).makeCopy("tmp_" + d.id);   // 구글 문서는 저장 용량에 잡히지 않고, 끝나면 휴지통으로 보낸다
   try {
     var doc = DocumentApp.openById(tmp.getId());
     fillInspDoc_(doc, d);
     doc.saveAndClose();
-    var pdf = tmp.getAs("application/pdf").setName(d.id + ".pdf");
-    var f = folder.createFile(pdf);
-    f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    return f;
+    return tmp.getAs("application/pdf").setName(d.id + ".pdf");
   } finally {
     tmp.setTrashed(true);
   }
