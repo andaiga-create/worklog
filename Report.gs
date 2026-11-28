@@ -212,7 +212,8 @@ function buildReport_(d, day, all) {
     });
     order.sort(function (a2, b2) { return cum[b2].m - cum[a2].m; });
     var allWho = {}, dayTot = 0;
-    var cid = "pie" + (++pieN), pie = makePie_(cid, order.map(function (t) { return [t, cum[t].m]; }));
+    // 이미지 이름은 자릿수를 같게 한다(pie101, pie102 …). pie1 과 pie10 처럼 앞부분이 겹치면 일부 그룹웨어에서 그림이 본문과 분리된다
+    var cid = "pie" + (100 + (++pieN)), pie = makePie_(cid, order.map(function (t) { return [t, cum[t].m]; }));
     if (pie) images[cid] = pie;
 
     h += '<div style="padding:8px 12px;border-top:1px solid #d1d5db;background:#fcfcfd"><div style="font-size:12px;color:#6b7280;margin-bottom:4px">작업구분별 누적 MH · ' + d + ' 기준 (최초 일지 ' + first + ' ~)</div>' +
@@ -252,7 +253,7 @@ function buildReport_(d, day, all) {
     td_("<b>" + hh_(totMin) + "</b>", ";text-align:right;border-bottom:0") + td_("", ";border-bottom:0") + '</tr></table>';
 
   var url = ""; try { url = SpreadsheetApp.getActiveSpreadsheet().getUrl(); } catch (e2) {}
-  h += '<div style="font-size:12.5px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:10px;margin-top:18px">시수와 MH는 시작~종료 시간 기준 인시(쉬는 시간 포함)입니다. 받는 사람은 시트의 \'' + REPORT_TAB + '\' 탭에서 바꿀 수 있습니다.' + (url ? ' · <a href="' + url + '" style="color:#1e40af">시트 열기</a>' : '') + '</div>';
+  h += '<div style="font-size:12.5px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:10px;margin-top:18px">시수와 MH는 시작~종료 시간에서 식사시간(12:00~13:00, 17:30~18:00)을 뺀 값입니다. 받는 사람은 시트의 \'' + REPORT_TAB + '\' 탭에서 바꿀 수 있습니다.' + (url ? ' · <a href="' + url + '" style="color:#1e40af">시트 열기</a>' : '') + '</div>';
   h += '</div>';
   return { subject: subject, html: h, images: images };
 }
