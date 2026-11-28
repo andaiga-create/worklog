@@ -3,7 +3,7 @@
    - 처음 한 번 setupDashboard 를 ▶ 실행 → '현황', '공휴일' 탭 생성
    - '현황' 탭의 [새로고침] 체크박스를 누르거나, 상단 메뉴 '작업일지 > 현황 새로고침'
    - 시작일/종료일은 B1, B2 에 입력 (비우면 최근 2주 / 오늘)
-   - 날짜는 최근 날짜가 앞에, 일지가 없는 날과 작업구분은 표시하지 않는다
+   - 날짜는 최근 날짜가 가장 오른쪽에, 일지가 없는 날과 작업구분은 표시하지 않는다
    - 작업구분 순서는 '작업항목' 탭 A열에 처음 나오는 순서로 고정
    - 시수는 식사시간(12:00~13:00, 17:30~18:00)을 뺀 값
    - 이 파일은 Code.gs 와 같은 프로젝트에 새 파일로 추가한다 (웹앱 재배포 불필요)
@@ -106,7 +106,7 @@ function dbBuild_(logs, typeOrder, parts, holidays, start, end) {
     if (dates.indexOf(l.date) < 0) dates.push(l.date);
     if (projects.indexOf(key(l)) < 0) projects.push(key(l));
   });
-  dates.sort().reverse();          // 최근 날짜가 앞
+  dates.sort();                    // 오래된 날짜부터, 최근 날짜가 가장 오른쪽
   projects.sort();
 
   // 작업구분 고정 순서: '작업항목' 탭 순서 → 탭에 없는 것(가나다순) → 미분류
