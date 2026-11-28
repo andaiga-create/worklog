@@ -111,7 +111,7 @@ function settleBuild_(logs, start, end) {
       workers: o.wk.map(function (k) {
         var w = o.w[k], ds = Object.keys(w.dates).sort();
         var proj = Object.keys(w.proj).sort(function (a, b) { return w.proj[b] - w.proj[a]; });
-        return { name: k, mins: w.m, logs: w.n, days: ds.length, dates: ds, proj: proj };
+        return { name: k, mins: w.m, logs: w.n, days: ds.length, dates: ds, dayMins: w.dates, proj: proj };
       }) };
   });
   ext.sort(function (a, b) {
@@ -126,7 +126,40 @@ function stDates_(ds) {   // 2026-11-03,2026-11-04 → 11/3, 11/4
   return ds.map(function (d) { return Number(d.slice(5, 7)) + "/" + Number(d.slice(8)); }).join(", ");
 }
 
-function settleHtml_(t, start, end) {
+var SETTLE_OVER_MIN = 480;   // 하루 8시간(식사시간 제외) 초과면 청색
+// '공휴일' 탭(현황 탭과 같이 씀)의 날짜 → 이름. 탭이 없으면 빈 목록
+function stHolidays_() {
+  var out = {};
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("공휴일");
+    if (!sh || sh.getLastRow() < 2) return out;
+    var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+    sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues().forEach(function (r) {
+      var v = r[0], d = Object.prototype.toString.call(v) === "[object Date]" ? Utilities.formatDate(v, tz, "yyyy-MM-dd") : String(v).trim().slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) out[d] = String(r[1] || "공휴일");
+    });
+  } catch (e) { Logger.log("공휴일 읽기 실패: " + e); }
+  return out;
+}
+function stIsRed_(d, hol) {
+  var p = d.split("-");
+  return hol[d] !== undefined || new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]))).getUTCDay() === 0;
+}
+// 작업 날짜 목록(HTML): 일요일·공휴일은 적색, 8시간 초과는 청색(둘 다면 적색 굵게 + 밑줄)
+function stDatesHtml_(w, hol) {
+  return w.dates.map(function (d) {
+    var red = stIsRed_(d, hol), over = (w.dayMins[d] || 0) > SETTLE_OVER_MIN;
+    var st = "white-space:nowrap";
+    if (red) st += ";color:#dc2626;font-weight:bold";
+    else if (over) st += ";color:#2563eb;font-weight:bold";
+    if (red && over) st += ";text-decoration:underline";
+    var tip = (hol[d] ? hol[d] + " · " : "") + stH_(w.dayMins[d] || 0) + "h";
+    return '<span title="' + esc_(tip) + '" style="' + st + '">' + Number(d.slice(5, 7)) + "/" + Number(d.slice(8)) + "</span>";
+  }).join(", ");
+}
+
+function settleHtml_(t, start, end, hol) {
+  hol = hol || {};
   var tm = 0, tn = 0, tw = 0;
   t.vendors.forEach(function (v) { tm += v.mins; tn += v.logs; tw += v.workers.length; });
   var h = '<div style="max-width:1300px;font-family:-apple-system,\'Malgun Gothic\',sans-serif;color:#1f2937;border:1px solid #e5e7eb;border-radius:10px;padding:22px 24px">';
@@ -145,7 +178,9 @@ function settleHtml_(t, start, end) {
   h += '<tr>' + td_("<b>합계</b>", ";border-bottom:0") + td_("<b>" + tw + "명</b>", ";text-align:right;border-bottom:0") + td_("-", ";text-align:right;border-bottom:0") +
     td_("<b>" + tn + "건</b>", ";text-align:right;border-bottom:0") + td_("<b>" + stH_(tm) + "h</b>", ";text-align:right;border-bottom:0") + td_("", ";border-bottom:0") + '</tr></table>';
 
-  h += sec_("작업자별 상세");
+  h += sec_("작업자별 상세 <span style=\"font-size:12px;font-weight:normal;color:#6b7280\">작업 날짜: " +
+    "<b style=\"color:#2563eb\">청색</b> 하루 8시간 초과 · <b style=\"color:#dc2626\">적색</b> 일요일·공휴일 · " +
+    "<b style=\"color:#dc2626;text-decoration:underline\">적색 밑줄</b> 둘 다</span>");
   t.vendors.forEach(function (v) {
     h += '<div style="border:1px solid #d1d5db;border-radius:6px;margin-bottom:14px;overflow:hidden">' +
       '<div style="background:#f9fafb;padding:8px 12px;font-size:14px"><b>' + esc_(v.name) + '</b> <span style="color:#6b7280;font-size:12px">· ' +
@@ -154,7 +189,7 @@ function settleHtml_(t, start, end) {
       th_("작업 날짜", ";width:45%") + th_("주요 프로젝트") + '</tr>';
     v.workers.forEach(function (w) {
       h += '<tr>' + td_(esc_(w.name)) + td_(w.days + "일", ";text-align:right") + td_(w.logs + "건", ";text-align:right") + td_("<b>" + stH_(w.mins) + "h</b>", ";text-align:right") +
-        td_(stDates_(w.dates), ";white-space:normal;color:#374151;font-size:12.5px") + td_(esc_(w.proj.slice(0, 3).join(", ") + (w.proj.length > 3 ? " 외 " + (w.proj.length - 3) : "")), ";white-space:normal;color:#6b7280;font-size:12.5px") + '</tr>';
+        td_(stDatesHtml_(w, hol), ";white-space:normal;color:#374151;font-size:12.5px") + td_(esc_(w.proj.slice(0, 3).join(", ") + (w.proj.length > 3 ? " 외 " + (w.proj.length - 3) : "")), ";white-space:normal;color:#6b7280;font-size:12.5px") + '</tr>';
     });
     h += '</table></div>';
   });
@@ -197,6 +232,6 @@ function sendSettlementFor_(start, end, to, test) {
   var tm = 0; t.vendors.forEach(function (v) { tm += v.mins; });
   var subject = (test ? "[시험] " : "") + "[외주 정산] " + period + " · 업체 " + t.vendors.length + "곳 / " + stH_(tm) + "h";
   var csv = Utilities.newBlob(settleCsv_(t), "text/csv", "외주정산_" + start + "_" + end + ".csv");
-  MailApp.sendEmail({ to: to.join(","), subject: subject, htmlBody: settleHtml_(t, start, end), body: subject, name: REPORT_SENDER, attachments: [csv] });
+  MailApp.sendEmail({ to: to.join(","), subject: subject, htmlBody: settleHtml_(t, start, end, stHolidays_()), body: subject, name: REPORT_SENDER, attachments: [csv] });
   return "sent " + t.rows.length + "건";
 }
