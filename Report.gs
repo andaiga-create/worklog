@@ -2,6 +2,7 @@
    매일 08시 전일 작업일지 보고 메일
    - 받는 사람: 시트의 '보고수신' 탭 A열 (한 줄에 주소 하나, 추가/삭제는 거기서)
    - 전일에 일지가 한 건도 없으면(휴일 등) 보내지 않는다
+   - 상단에 '검사신청' 탭의 검사 일정(오늘 ~ 3일 뒤)을 함께 보여준다
    - 처음 한 번 setupDailyReport 를 실행해 매일 08시 트리거를 만든다
    - 이 파일은 Code.gs 와 같은 프로젝트에 '새 파일'로 추가한다(웹앱 재배포 불필요)
    ===================================================================== */
@@ -129,6 +130,50 @@ function kp_(label, val, bg, fg) {
   return '<td style="background:' + (bg || "#f3f4f6") + ';text-align:center;padding:9px 4px;border-radius:8px;width:11%"><div style="font-size:11.5px;color:' + (fg || "#6b7280") + '">' + label + '</div><div style="font-size:20px;font-weight:bold;color:' + (fg || "#1f2937") + '">' + val + '</div></td><td style="width:8px"></td>';
 }
 
+/* ---------- 검사 일정 ---------- */
+var REPORT_INSP_DAYS = 3;   // 오늘부터 며칠 뒤까지 보여줄지 (금요일 메일에 월요일 검사까지 보이도록 3일)
+function rpShift_(d, n) {
+  var p = d.split("-"), x = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + n));
+  return x.getUTCFullYear() + "-" + ("0" + (x.getUTCMonth() + 1)).slice(-2) + "-" + ("0" + x.getUTCDate()).slice(-2);
+}
+function rpDow_(d) { var p = d.split("-"); return "일월화수목금토".charAt(new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]))).getUTCDay()); }
+
+// 시트를 읽어 검사 일정 HTML을 만든다. 실패하거나 일정이 없으면 빈 문자열(보고서는 그대로 나간다)
+function inspSchedule_() {
+  try {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("검사신청");
+    if (!sh || sh.getLastRow() < 2) return "";
+    var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 12).getDisplayValues();
+    return inspScheduleHtml_(rows, Utilities.formatDate(new Date(), REPORT_TZ, "yyyy-MM-dd"));
+  } catch (e) { Logger.log("검사 일정 실패: " + e); return ""; }
+}
+
+// rows: '검사신청' 탭의 값 (0 관리번호, 3 작성자, 4 검사구분, 5 조선소, 6 호선, 7 장비명, 8 품명, 9 검사요구일시, 10 부품내역)
+function inspScheduleHtml_(rows, today) {
+  var last = rpShift_(today, REPORT_INSP_DAYS);
+  var list = rows.filter(function (r) {
+    var d = String(r[9]).slice(0, 10);
+    return r[0] && d >= today && d <= last;
+  }).sort(function (a, b) { return String(a[9]).localeCompare(String(b[9])); });
+  if (!list.length) return "";
+  var h = sec_("검사 일정 <span style=\"font-size:12px;font-weight:normal;color:#6b7280\">오늘 ~ " + REPORT_INSP_DAYS + "일 뒤 · " + list.length + "건</span>") +
+    '<table style="width:100%;border-collapse:collapse"><tr>' + th_("일시", ";width:150px") + th_("구분", ";width:90px") + th_("관리번호", ";width:130px") +
+    th_("프로젝트", ";width:200px") + th_("품명", ";width:200px") + th_("검사 부품") + th_("신청자", ";width:90px") + '</tr>';
+  list.forEach(function (r) {
+    var d = String(r[9]).slice(0, 10), tm = String(r[9]).slice(11);
+    var day = d === today ? "오늘" : d === rpShift_(today, 1) ? "내일" : Number(d.slice(5, 7)) + "/" + Number(d.slice(8));
+    var hot = d === today || d === rpShift_(today, 1);
+    var perf = /성능/.test(r[4]);
+    var chip = '<span style="display:inline-block;font-size:11.5px;padding:1px 8px;border-radius:9px;white-space:nowrap;background:' +
+      (perf ? "#ede9fe;color:#5b21b6" : "#ffedd5;color:#9a3412") + '">' + esc_(r[4]) + '</span>';
+    h += '<tr' + (hot ? ' style="background:#fffbeb"' : '') + '>' +
+      td_((hot ? "<b>" : "") + day + "(" + rpDow_(d) + ") " + esc_(tm) + (hot ? "</b>" : "")) + td_(chip) + td_(esc_(r[0])) +
+      td_("<b>" + esc_(r[5] + "-" + r[6] + "-" + r[7]) + "</b>") + td_(esc_(r[8] || "-"), ";white-space:normal;color:#6b7280") +
+      td_(esc_(r[10]), ";white-space:normal") + td_(esc_(r[3])) + '</tr>';
+  });
+  return h + '</table>';
+}
+
 /* ---------- 보고서 본문 ---------- */
 function buildReport_(d, day, all) {
   var p = d.split("-");
@@ -159,6 +204,9 @@ function buildReport_(d, day, all) {
     kp_("일지", day.length + "건") + kp_("작업자", writers.length + "명") + kp_("직영", nOwn + "명") + kp_("외주", nExt + "명") +
     kp_("총 작업시간", hh_(totMin)) + kp_("프로젝트", projKeys.length + "개") +
     kp_("완료", st.ok, "#dcfce7", "#166534") + kp_("진행중", st.pg, "#dbeafe", "#1e40af") + kp_("보류", st.hd, "#fef3c7", "#92400e") + '</tr></table>';
+
+  // 검사 일정 (메일 받는 날부터 3일 뒤까지, '검사신청' 탭)
+  h += inspSchedule_();
 
   // 확인 필요 사항 (보류)
   var holds = day.filter(function (l) { return /^보류/.test(l.status); });
